@@ -27,6 +27,10 @@ class Tetromino:
         self.Type = tetromino_type
         self.Position = main_position
         self.Rotation = rotation
+        self.main_piece = None
+        self.sub_piece1 = None
+        self.sub_piece2 = None
+        self.sub_piece3 = None
         self.Construct()
         DrawToPlayingGround(self.GetPiecesLocation())
 
