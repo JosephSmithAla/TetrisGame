@@ -5,10 +5,6 @@ TetrominoTypes = ["I", "L", "S", "Z", "O", "J", "T"]
 
 PlayingGround = np.zeros((20,10), dtype=int)
 
-class Piece:
-    def __init__(self, relative_position = np.array([0,0])):
-        self.relative_position = relative_position
-
 
 def DrawToPlayingGround(positions_to_draw):
     global PlayingGround
@@ -37,43 +33,43 @@ class Tetromino:
     def Construct(self):
         match self.Type:
             case "I":
-                self.main_piece = Piece(np.array([0, 0]))
-                self.sub_piece1 = Piece(np.array([0, 1]))
-                self.sub_piece2 = Piece(np.array([0, -1]))
-                self.sub_piece3 = Piece(np.array([0, -2]))
+                self.main_piece = np.array([0, 0])
+                self.sub_piece1 = np.array([0, 1])
+                self.sub_piece2 = np.array([0, -1])
+                self.sub_piece3 = np.array([0, -2])
             case "L":
-                self.main_piece = Piece(np.array([0,0]))
-                self.sub_piece1 = Piece(np.array([0,1]))
-                self.sub_piece2 = Piece(np.array([0,-1]))
-                self.sub_piece3 = Piece(np.array([1,-1]))
+                self.main_piece = np.array([0,0])
+                self.sub_piece1 = np.array([0,1])
+                self.sub_piece2 = np.array([0,-1])
+                self.sub_piece3 = np.array([1,-1])
             case "S":
-                self.main_piece = Piece(np.array([0,0]))
-                self.sub_piece1 = Piece(np.array([1,0]))
-                self.sub_piece2 = Piece(np.array([0,-1]))
-                self.sub_piece3 = Piece(np.array([-1,-1]))
+                self.main_piece = np.array([0,0])
+                self.sub_piece1 = np.array([1,0])
+                self.sub_piece2 = np.array([0,-1])
+                self.sub_piece3 = np.array([-1,-1])
             case "Z":
-                self.main_piece = Piece(np.array([0,0]))
-                self.sub_piece1 = Piece(np.array([-1,0]))
-                self.sub_piece2 = Piece(np.array([0,-1]))
-                self.sub_piece3 = Piece(np.array([1,-1]))
+                self.main_piece = np.array([0,0])
+                self.sub_piece1 = np.array([-1,0])
+                self.sub_piece2 = np.array([0,-1])
+                self.sub_piece3 = np.array([1,-1])
             case "O":
-                self.main_piece = Piece(np.array([0,0]))
-                self.sub_piece1 = Piece(np.array([1,0]))
-                self.sub_piece2 = Piece(np.array([0,-1]))
-                self.sub_piece3 = Piece(np.array([1,-1]))
+                self.main_piece = np.array([0,0])
+                self.sub_piece1 = np.array([1,0])
+                self.sub_piece2 = np.array([0,-1])
+                self.sub_piece3 = np.array([1,-1])
             case "J":
-                self.main_piece = Piece(np.array([0,0]))
-                self.sub_piece1 = Piece(np.array([0,1]))
-                self.sub_piece2 = Piece(np.array([0,-1]))
-                self.sub_piece3 = Piece(np.array([-1,-1]))
+                self.main_piece = np.array([0,0])
+                self.sub_piece1 = np.array([0,1])
+                self.sub_piece2 = np.array([0,-1])
+                self.sub_piece3 = np.array([-1,-1])
             case "T":
-                self.main_piece = Piece(np.array([0,0]))
-                self.sub_piece1 = Piece(np.array([1,0]))
-                self.sub_piece2 = Piece(np.array([-1,0]))
-                self.sub_piece3 = Piece(np.array([0,-1]))
+                self.main_piece = np.array([0,0])
+                self.sub_piece1 = np.array([1,0])
+                self.sub_piece2 = np.array([-1,0])
+                self.sub_piece3 = np.array([0,-1])
 
     def GetPiecesLocation(self):
-        return [self.Position + self.main_piece.relative_position, self.Position + self.sub_piece1.relative_position, self.Position + self.sub_piece2.relative_position, self.Position + self.sub_piece3.relative_position]
+        return [self.Position + self.main_piece, self.Position + self.sub_piece1, self.Position + self.sub_piece2, self.Position + self.sub_piece3]
 
     def Move(self, NewLocation):
         EraseFromPlayingGround(self.GetPiecesLocation())
@@ -84,17 +80,17 @@ class Tetromino:
 
         EraseFromPlayingGround(self.GetPiecesLocation())
 
-        placeholder_y = self.sub_piece1.relative_position[1]
-        self.sub_piece1.relative_position[1] = -self.sub_piece1.relative_position[0]
-        self.sub_piece1.relative_position[0] = placeholder_y
+        placeholder_y = self.sub_piece1[1]
+        self.sub_piece1[1] = -self.sub_piece1[0]
+        self.sub_piece1[0] = placeholder_y
 
-        placeholder_y = self.sub_piece2.relative_position[1]
-        self.sub_piece2.relative_position[1] = -self.sub_piece2.relative_position[0]
-        self.sub_piece2.relative_position[0] = placeholder_y
+        placeholder_y = self.sub_piece2[1]
+        self.sub_piece2[1] = -self.sub_piece2[0]
+        self.sub_piece2[0] = placeholder_y
 
-        placeholder_y = self.sub_piece3.relative_position[1]
-        self.sub_piece3.relative_position[1] = -self.sub_piece3.relative_position[0]
-        self.sub_piece3.relative_position[0] = placeholder_y
+        placeholder_y = self.sub_piece3[1]
+        self.sub_piece3[1] = -self.sub_piece3[0]
+        self.sub_piece3[0] = placeholder_y
 
         DrawToPlayingGround(self.GetPiecesLocation())
 
