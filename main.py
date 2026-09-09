@@ -156,13 +156,10 @@ def bTrySpawnTetromino():
 while True:
 
     print(PlayingGround)
-    print(MyTetromino.Position)
 
     if BufferedInput.size > 0:
         MyTetromino.Move(BufferedInput)
         BufferedInput = np.array([])
-
-    print(MyTetromino.bCheckCollisionAtPosition(MyTetromino.GetPiecesLocation(np.array([MyTetromino.Position[0], MyTetromino.Position[1] - Gravity]))))
 
     if MyTetromino.bCheckCollisionAtPosition(MyTetromino.GetPiecesLocation(np.array([MyTetromino.Position[0], MyTetromino.Position[1] - Gravity]))):
         if bTrySpawnTetromino():
@@ -172,14 +169,6 @@ while True:
             break
     else:
         MyTetromino.Move(np.array([MyTetromino.Position[0], MyTetromino.Position[1] - Gravity]))
-
-
-
-
-
-
-
-
 
 
     time.sleep(0.5)
