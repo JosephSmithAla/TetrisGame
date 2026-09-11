@@ -173,13 +173,14 @@ class TetrisGameInstance:
         for i in range(clear_row, 20):
             self.PlayingGround[20 - i] = self.PlayingGround[20 - (i + 1)] # np.all dan filtre yapilabilir, numpy c ile islme yaptigi icin daha hizli checkler ve siler ama ne kadar gerekli bilmiyorum
         self.EraseFromPlayingGround([column + 1, 20] for column in range(10))
-    def CheckLineClear(self, row):
 
-        if self.PlayingGround[20 - row].sum() == 10:
-            self.EraseFromPlayingGround([column + 1, row] for column in range(10))
-            self.BringDownLines(row)
-
-
+    def CheckLineClears(self, rows):
+        ClearedLineCount = 0
+        for row in rows:
+            if self.PlayingGround[20 - (row - ClearedLineCount)].sum() == 10:
+                self.EraseFromPlayingGround([column + 1, row - ClearedLineCount] for column in range(10))
+                self.BringDownLines(row - ClearedLineCount)
+                ClearedLineCount += 1
 
     def LockTetromino(self):
         piece_locations = self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position)
@@ -188,8 +189,7 @@ class TetrisGameInstance:
 
         piece_locations_y = np.unique(np.array(piece_locations)[:, 1])
 
-        for location_y in piece_locations_y:
-            self.CheckLineClear(location_y)
+        self.CheckLineClears(piece_locations_y)
 
     def DrawGUI(self):
         for row in range(20):
