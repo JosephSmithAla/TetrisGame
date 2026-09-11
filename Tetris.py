@@ -4,6 +4,7 @@ import threading
 import pygame
 import sys
 
+
 class Tetromino:
     def __init__(self, tetromino_type="T", main_position=np.array([0, 0]), rotation=0):
         self.Type = tetromino_type
@@ -102,7 +103,39 @@ class TetrisGameInstance:
         self.GameScreen = pygame.display.set_mode((400, 800))
         self.TetrominoColor = (0, 0, 0)
         self.EmptySpaceColor = (255, 255, 255)
-        self.StartGame()
+        #self.StartGame() simdilik kapali
+
+
+    def generateStates(self, state, piece): #canli oynanan kaydi etkilemeyen generate state fonksiyonu,zaten cnn kullanacak sadece o yuzden canliya mudahale etmeisnde sorun yok gibi
+        states_to_return = []
+
+        livePlayingGround = self.PlayingGround
+        livePlayerPlayingGround = self.PlayerPlayingGround
+        self.PlayerPlayingGround = np.zeros((20, 10), dtype=int)
+        self.PlayingGround = state
+        for i in range(1, 11):
+            last_loc = np.array([])
+            for j in range(19, -1, -1):
+                tetromino = Tetromino(tetromino_type=self.TetrominoTypes[int(piece)], main_position=np.array([i, j]),
+                                  rotation=0)
+                if(self.bCheckCollisionAtPosition(tetromino.GetPiecesLocation(piece))):
+                    break
+                last_loc = tetromino.GetPiecesLocation(piece)
+            print(len(last_loc))
+            if len(last_loc) > 0:
+                self.DrawToPlayerPlayingGround(last_loc)
+                states_to_return.append(self.PlayingGround + self.PlayerPlayingGround)
+                self.EraseFromPlayerPlayingGround(last_loc)
+
+        print(states_to_return)
+        self.PlayingGround = livePlayingGround
+        self.PlayerPlayingGround = livePlayerPlayingGround
+        return states_to_return
+
+
+
+
+
 
     def DrawToPlayingGround(self, positions_to_draw):
         for position in positions_to_draw:
@@ -238,3 +271,8 @@ class TetrisGameInstance:
     def StartGame(self):
 
         threading.Timer(0.2, self.GameLoop).start()
+
+
+game = TetrisGameInstance()
+
+game.generateStates(np.zeros((20, 10)), 4)

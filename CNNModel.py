@@ -30,7 +30,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         if len(self.memory) < batch_size:
             return
         batch = self.sample(batch_size)
-        states = np.array([np.expand_dims(item[0], axis=-1) for item in batch], dtype=np.float32) #(20, 10, 1)
+        states = np.array([np.expand_dims(item[0], axis=-1) for item in batch], dtype=np.float32) #(BATCH_SIZE, 20, 10, 1)
         rewards = np.array([item[1] for item in batch], dtype=np.float32)
         max_future_qs = np.zeros(batch_size)
         future_states = []
