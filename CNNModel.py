@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow.keras import layers, models
 import matplotlib.pyplot as plt
 import random
+from Tetris import TetrisGameInstance
 
 class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. daha cok image icin feature extractionda parametreleri azaltmak icin kullaniliyor
     def __init__(self):
@@ -21,6 +22,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         self.target_model = models.Model(inputs=inputs, outputs=output, name='TargetTetrisModel')
         self.model.summary()
 
+        self.game = TetrisGameInstance()
         self.memory = [] # 20x10np.array (s), int (reward), int (next_piece_enum), done
 
     def sample(self, sample_size):
@@ -39,7 +41,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         id = 0
         for i in range(batch_size):
             if (not batch[i][3]):
-                for s in game.getStates(batch[i][0], batch[i][2]): # game.getStates varmis gibi yazdim ama yok su an...
+                for s in self.game.getStates(batch[i][0], batch[i][2]): # game.getStates varmis gibi yazdim ama VAR su an...
                     future_states.append(s)
                     filter_id.append(id)
                 fstates_id.append(i)
@@ -53,6 +55,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
             segment_ids = tf.constant(filter_id, dtype=tf.int32)
             max_future_qs[fstates_id] = tf.math.segment_max(q_preds, segment_ids).numpy()
         target = rewards + 0.99 * max_future_qs
+        loss = target - self.model(states, training=False)
 
 
 

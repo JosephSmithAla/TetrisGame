@@ -106,7 +106,7 @@ class TetrisGameInstance:
         #self.StartGame() simdilik kapali
 
 
-    def generateStates(self, state, piece): #canli oynanan kaydi etkilemeyen generate state fonksiyonu,zaten cnn kullanacak sadece o yuzden canliya mudahale etmeisnde sorun yok gibi
+    def getStates(self, state, piece): #canli oynanan kaydi etkilemeyen generate state fonksiyonu,zaten cnn kullanacak sadece o yuzden canliya mudahale etmeisnde sorun yok gibi
         states_to_return = []
 
         livePlayingGround = self.PlayingGround
@@ -118,13 +118,15 @@ class TetrisGameInstance:
             for j in range(19, -1, -1):
                 tetromino = Tetromino(tetromino_type=self.TetrominoTypes[int(piece)], main_position=np.array([i, j]),
                                   rotation=0)
-                if(self.bCheckCollisionAtPosition(tetromino.GetPiecesLocation(piece))):
+                if(self.bCheckCollisionAtPosition(tetromino.GetPiecesLocation(tetromino.Position))):
                     break
-                last_loc = tetromino.GetPiecesLocation(piece)
-            print(len(last_loc))
+                last_loc = tetromino.GetPiecesLocation(tetromino.Position)
             if len(last_loc) > 0:
                 self.DrawToPlayerPlayingGround(last_loc)
-                states_to_return.append(self.PlayingGround + self.PlayerPlayingGround)
+                self.PlayingGround = self.PlayingGround + self.PlayerPlayingGround
+                self.CheckLineClears(np.unique(np.array(last_loc)[:, 1]))
+                states_to_return.append(self.PlayingGround)
+                self.PlayingGround = self.PlayingGround - self.PlayerPlayingGround
                 self.EraseFromPlayerPlayingGround(last_loc)
 
         print(states_to_return)
@@ -275,4 +277,23 @@ class TetrisGameInstance:
 
 game = TetrisGameInstance()
 
-game.generateStates(np.zeros((20, 10)), 4)
+game.getStates(np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 1, 1, 0, 0, 0, 0, 0, 0],
+       [0, 0, 1, 1, 0, 0, 0, 0, 0, 0]]), -1)
