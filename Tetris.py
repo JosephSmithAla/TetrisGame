@@ -204,6 +204,7 @@ class TetrisGameInstance:
             self.MyTetromino.RevertRotation()
 
         self.DrawToPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
+        self.GameLoop()
 
 
     def BringDownLines(self, clear_row):
