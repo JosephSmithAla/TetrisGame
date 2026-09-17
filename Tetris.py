@@ -115,7 +115,7 @@ class TetrisGameInstance:
         for i in range(1, 11):
             last_loc = np.array([])
             for j in range(19, -1, -1):
-                tetromino = Tetromino(tetromino_type=self.TetrominoTypes[int(piece)], main_position=np.array([i, j]),
+                tetromino = Tetromino(tetromino_type=piece, main_position=np.array([i, j]),
                                   rotation=0)
                 if(self.bCheckCollisionAtPosition(tetromino.GetPiecesLocation(tetromino.Position))):
                     break
@@ -123,12 +123,11 @@ class TetrisGameInstance:
             if len(last_loc) > 0:
                 self.DrawToPlayerPlayingGround(last_loc)
                 self.PlayingGround = self.PlayingGround + self.PlayerPlayingGround
-                self.CheckLineClears(np.unique(np.array(last_loc)[:, 1]))
-                states_to_return.append(self.PlayingGround)
+                reward = pow(10, self.CheckLineClears(np.unique(np.array(last_loc)[:, 1])))
+                states_to_return.append((self.PlayingGround, reward))
                 self.PlayingGround = self.PlayingGround - self.PlayerPlayingGround
                 self.EraseFromPlayerPlayingGround(last_loc)
 
-        print(states_to_return)
         self.PlayingGround = livePlayingGround
         self.PlayerPlayingGround = livePlayerPlayingGround
         return states_to_return
@@ -219,6 +218,7 @@ class TetrisGameInstance:
                 self.EraseFromPlayingGround([column + 1, row - ClearedLineCount] for column in range(10))
                 self.BringDownLines(row - ClearedLineCount)
                 ClearedLineCount += 1
+        return ClearedLineCount
 
     def LockTetromino(self):
         piece_locations = self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position)
@@ -249,6 +249,15 @@ class TetrisGameInstance:
     def GetGameCanvasArray(self):
 
         return np.concatenate(self.PlayingGround.flatten(), self.PlayerPlayingGround.flatten())
+
+    def GameLoopCNN(self, state, reward):
+        self.PlayingGround = state
+        if self.bTrySpawnTetromino():
+            return (state, reward, self.MyTetromino.Type, False)
+        else:
+            self.PlayingGround = np.zeros_like(state)
+            return (state, -100000, None, True)
+
 
     def GameLoop(self):
 

@@ -6,3 +6,4 @@ env/
 
 # PyCharm / JetBrains
 .idea/
+.idea/TetrisGame.iml

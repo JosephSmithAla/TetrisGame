@@ -11,7 +11,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         inputs = layers.Input(shape=(20, 10, 1)) # yukseklik genislik kanal
         branch1x3 = layers.Conv2D(32, (1, 3), activation='relu', padding='same')(inputs) #yatay bilgiler
         branch5x1 = layers.Conv2D(32, (5, 1), activation='relu', padding='same')(inputs) #dikey bilgiler
-        branch3x3 = layers.Conv2D(32, (3, 3), activation='relu', padding='same')(inputs) #genjel feature extraction
+        branch3x3 = layers.Conv2D(32, (3, 3), activation='relu', padding='same')(inputs) #genel feature extraction
         x = layers.Concatenate(axis=-1)([branch1x3, branch5x1, branch3x3])
         x = layers.Conv2D(16, (1, 1), activation='relu')(x) #parametre sayisini azaltmak icin
         x = layers.Flatten()(x)
@@ -20,7 +20,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
 
         self.model = models.Model(inputs=inputs, outputs=output, name='TetrisModel')
         self.target_model = models.Model(inputs=inputs, outputs=output, name='TargetTetrisModel')
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4) # hiper parametre olarak eklenmeli
         self.model.summary()
 
         self.game = TetrisGameInstance()
@@ -33,6 +33,14 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
 
     def memorize(self, state, reward, piece, done):
         self.memory.append((state, reward, piece, done))
+
+    def play(self, play_num):
+        for i in range(play_num):
+            s_r = self.game.getStates(self.game.PlayingGround, self.game.MyTetromino.Type)
+            possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r], dtype=np.float32) # hem iceride kanal ekliyorus axis -1 ile hem de disaridan sariyoruz boylelikle dis boyut da artiyor
+            decision = s_r[np.argmax(self.model(possible_states, training=False).numpy())]
+            self.memorize(*self.game.GameLoopCNN(*decision))
+        print(self.memory)
 
     def optimize(self, batch_size):
         if len(self.memory) < batch_size:
@@ -55,6 +63,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         for i in range(batch_size):
             if (not batch[i][3]):
                 next_states = self.game.getStates(batch[i][0], batch[i][2])
+                next_states = [r[0] for r in next_states]
                 for s in next_states:
                     future_states.append(s)
                     filter_id.append(id)
@@ -88,44 +97,5 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
 
 
 model = TetrisModel()
-model.memorize(state=np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
-       [1, 1, 1, 1, 1, 1, 0, 0, 0, 0]]), reward=0.1, piece=0, done=0)
-model.memorize(state=np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
-       [1, 1, 1, 1, 1, 1, 1, 1, 0, 0]]), reward=10.1, piece=3, done=0)
+model.play(2)
 model.optimize(batch_size=2)
