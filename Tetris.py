@@ -1,8 +1,6 @@
 import numpy as np
 import random
-import threading
 import pygame
-import sys
 
 
 class Tetromino:
@@ -103,6 +101,7 @@ class TetrisGameInstance:
         self.GameScreen = pygame.display.set_mode((400, 800))
         self.TetrominoColor = (0, 0, 0)
         self.EmptySpaceColor = (255, 255, 255)
+        self.points = 0.0000001
         #self.StartGame() simdilik kapali
 
 
@@ -183,18 +182,21 @@ class TetrisGameInstance:
             self.DrawToPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
             return True
 
-    def MoveRightInput(self, keyboard_event):
+    def MoveRightInput(self):
         self.BufferedInput = np.array([self.MyTetromino.Position[0] + 1, self.MyTetromino.Position[1]])
+        self.GameLoop()
 
-    def MoveLeftInput(self, keyboard_event):
+    def MoveLeftInput(self):
 
         self.BufferedInput = np.array([self.MyTetromino.Position[0] - 1, self.MyTetromino.Position[1]])
+        self.GameLoop()
 
-    def MoveDownInput(self, keyboard_event):
+    def MoveDownInput(self):
 
         self.BufferedInput = np.array([self.MyTetromino.Position[0], self.MyTetromino.Position[1] - 1])
+        self.GameLoop()
 
-    def RotateInput(self, keyboard_event):
+    def RotateInput(self):
 
         self.EraseFromPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
 
@@ -243,14 +245,15 @@ class TetrisGameInstance:
                 pygame.draw.rect(self.GameScreen, block_color, pygame.Rect(x, y, 40, 40))
         pygame.display.flip()
 
+    def GetGameCanvasArray(self):
 
+        return np.concatenate(self.PlayingGround.flatten(), self.PlayerPlayingGround.flatten())
 
     def GameLoop(self):
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
-                sys.exit()
 
         self.DrawGUI()
 
@@ -265,35 +268,12 @@ class TetrisGameInstance:
             if self.bTrySpawnTetromino():
                 pass
             else:
-                print("Game Over")
-                return
+                return self.points
+        return -1
 
-        threading.Timer(0.2, self.GameLoop).start()
 
     def StartGame(self):
 
-        threading.Timer(0.2, self.GameLoop).start()
+        self.GameLoop()
 
 
-game = TetrisGameInstance()
-
-game.getStates(np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
-       [1, 1, 1, 1, 1, 1, 1, 1, 0, 0]]), 4)
