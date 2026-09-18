@@ -143,23 +143,23 @@ class ModelManager:
 
     def GenerateNewPopulation(self):
 
-        new_generation = np.array([])
+        new_generation = []
 
         sorted_indices = np.argsort([network.fitness for network in self.Population])
         self.Population = self.Population[sorted_indices][::-1]
 
         for i in range(int(self.population_size / 100 * 10)):
-            new_generation = np.append(new_generation, self.Population[i])
+            new_generation.append(self.Population[i])
 
         normalised_fitness_weights = np.array([network.fitness for network in self.Population]) / np.array([network.fitness for network in self.Population]).sum()
         rng = np.random.default_rng()
 
-        new_parents = np.array([])
+        new_parents = []
 
         for i in range(int(self.population_size - (self.population_size / 100 * 10))):
-            new_parents = np.append(new_parents, rng.choice(self.Population, p=normalised_fitness_weights))
+            new_parents.append(rng.choice(self.Population, p=normalised_fitness_weights))
 
-        self.Population = np.concatenate((new_generation, self.CrossParents(new_parents)))
+        self.Population = np.concatenate((np.array(new_generation), self.CrossParents(np.array(new_parents))))
         self.bShouldGenerateNextGeneration = False
         self.death_counter = 0
 
