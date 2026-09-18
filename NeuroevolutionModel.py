@@ -87,7 +87,7 @@ class NeuralNetwork:
         layer_1_weights = self.GetWeights(self.Layer_1)
         layer_2_biases = self.GetBiases(self.Layer_2)
         layer_2_weights = self.GetWeights(self.Layer_2)
-        np.savez("weights_and_biases.npz", lyr1b = layer_1_biases, lyr2w = layer_1_weights, lyr2b = layer_2_biases, lyr3w = layer_2_weights)
+        np.savez("weights_and_biases.npz", lyr1b = layer_1_biases, lyr1w = layer_1_weights, lyr2b = layer_2_biases, lyr2w = layer_2_weights)
 
     def Activation_1(self, output):
         if output > 0:
