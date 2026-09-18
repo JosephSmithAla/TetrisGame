@@ -1,3 +1,5 @@
+from os import name
+
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers, models
@@ -6,7 +8,7 @@ import random
 from Tetris import TetrisGameInstance
 
 class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. daha cok image icin feature extractionda parametreleri azaltmak icin kullaniliyor
-    def __init__(self):
+    def __init__(self, lr, frequency, epsilon_decrease_rate):
         #PARALLEL CONVOLUTION FILTERS
         inputs = layers.Input(shape=(20, 10, 1)) # yukseklik genislik kanal
         branch1x3 = layers.Conv2D(32, (1, 3), activation='relu', padding='same')(inputs) #yatay bilgiler
@@ -20,27 +22,58 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
 
         self.model = models.Model(inputs=inputs, outputs=output, name='TetrisModel')
         self.target_model = models.Model(inputs=inputs, outputs=output, name='TargetTetrisModel')
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4) # hiper parametre olarak eklenmeli
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr) # hiper parametre olarak eklenmeli EKLENDI
         self.model.summary()
 
         self.game = TetrisGameInstance()
-        self.model_update_counter = 0 # hiper parametre olarak eklenmeli
+        self.model_update_frequency = frequency
+        self.model_update_counter = 0 # hiper parametre olarak eklenmeli EKLENDI
         self.memory = [] # 20x10np.array (s), int (reward), int (next_piece_enum), done
+        self.epsilon = 1.0
+        self.epsilon_min = 0.01
+        self.epsilon_decrease_rate = epsilon_decrease_rate
+
+        self.lines = [0]
+        self.loss_values = []
 
     def sample(self, sample_size):
         return random.sample(self.memory, sample_size)
 
 
-    def memorize(self, state, reward, piece, done):
+    def memorize(self, state, lines, piece, done):
+        if lines >= 0:
+            reward = pow(2, lines) * lines / 8
+        else:
+            reward = lines
         self.memory.append((state, reward, piece, done))
 
     def play(self, play_num):
+        lines_sum = 0
         for i in range(play_num):
             s_r = self.game.getStates(self.game.PlayingGround, self.game.MyTetromino.Type)
-            possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r], dtype=np.float32) # hem iceride kanal ekliyorus axis -1 ile hem de disaridan sariyoruz boylelikle dis boyut da artiyor
-            decision = s_r[np.argmax(self.model(possible_states, training=False).numpy())]
+            rand = random.random()
+            if self.epsilon < rand: #epsilon-greedy algoritmasi
+                possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r], dtype=np.float32) # hem iceride kanal ekliyorus axis -1 ile hem de disaridan sariyoruz boylelikle dis boyut da artiyor
+                decision = s_r[np.argmax(self.model(possible_states, training=False).numpy())]
+            else:
+                decision = random.choice(s_r)
+            if decision[1] > 0:
+                lines_sum += decision[1]
             self.memorize(*self.game.GameLoopCNN(*decision))
-        print(self.memory)
+        print(self.lines)
+        self.lines.append((lines_sum + self.lines[-1]))
+
+    def save(self):
+        self.model.save('CNNModel.h5')
+        np.savez('CNNModel_meta.npz', loss=self.loss_values, lines=self.lines, epsilon=self.epsilon)
+
+    def load(self):
+        self.model = models.load_model('CNNModel.h5')
+        self.target_model.set_weights(self.model.get_weights())
+        file = np.load('CNNModel_meta.npz')
+        self.loss_values = file['loss'].tolist()
+        self.lines = file['lines'].tolist()
+        self.epsilon = file['epsilon']
 
     def optimize(self, batch_size):
         if len(self.memory) < batch_size:
@@ -48,9 +81,15 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
 
         # target model guncellemesi
         self.model_update_counter += 1
-        if(self.model_update_counter == 1000): # hiper parametreye baglanmali "1000"
+        if(self.model_update_counter == self.model_update_frequency):
             self.target_model.set_weights(self.model.get_weights())
             self.model_update_counter = 0
+
+        #epsilon azaltma
+        if (self.epsilon >= self.epsilon_min):
+            self.epsilon *= self.epsilon_decrease_rate
+        else:
+            self.epsilon = self.epsilon_min
 
         batch = self.sample(batch_size)
         states = np.array([np.expand_dims(item[0], axis=-1) for item in batch], dtype=np.float32) #(BATCH_SIZE, 20, 10, 1)
@@ -89,13 +128,29 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
 
         grad = tape.gradient(loss, self.model.trainable_variables)
         self.optimizer.apply_gradients(zip(grad, self.model.trainable_variables))
-        print("HEDEF:", target, target.shape)
-        print("ILK TAHMIN:", pred_states, pred_states.shape)
-        print("SON TAHMIN:", self.model(states, training=False))
+        self.loss_values.append(loss)
+
+    def info(self):
+        print("LOSS:", self.loss_values[-1], " | ", "LINES:", self.lines[-1])
 
 
 
 
-model = TetrisModel()
-model.play(2)
-model.optimize(batch_size=2)
+
+model = TetrisModel(1e-4, 100, 0.99)
+model.load()
+for i in range(10000):
+    model.optimize(batch_size=64)
+    model.play(4)
+    model.info()
+model.save()
+
+fig, ax1 = plt.subplots()
+ax1.set_xlabel('optimize steps')
+ax1.set_ylabel('loss', color='blue')
+ax1.plot(model.loss_values, color='blue')
+
+ax2 = ax1.twinx()
+ax2.set_ylabel('lines cleared', color='orange')
+ax2.plot(model.lines, color='orange')
+plt.show()

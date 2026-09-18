@@ -51,6 +51,8 @@ class Tetromino:
                 self.sub_piece1 = np.array([1, 0])
                 self.sub_piece2 = np.array([-1, 0])
                 self.sub_piece3 = np.array([0, -1])
+        for r in range(self.Rotation):
+            self.GetRotatedPositions()
 
     def GetPiecesLocation(self, main_position):
         return [main_position + self.main_piece, main_position + self.sub_piece1, main_position + self.sub_piece2,
@@ -97,6 +99,7 @@ class TetrisGameInstance:
         self.PlayingGround = np.zeros((20, 10), dtype=int)
         self.PlayerPlayingGround = np.zeros((20, 10), dtype=int)
         self.TetrominoTypes = ["I", "L", "S", "Z", "O", "J", "T"]
+        self.TetrominoRotationBases = {"I" : 2, "L" : 4, "S" : 2, "Z" : 2, "O" : 1, "J" : 4, "T" : 4}
         self.MyTetromino = Tetromino(tetromino_type = self.TetrominoTypes[random.randint(0, 6)], main_position = self.DefaultPosition, rotation = 0)
         self.GameScreen = pygame.display.set_mode((400, 800))
         self.TetrominoColor = (0, 0, 0)
@@ -112,21 +115,22 @@ class TetrisGameInstance:
         livePlayerPlayingGround = self.PlayerPlayingGround
         self.PlayerPlayingGround = np.zeros((20, 10), dtype=int)
         self.PlayingGround = state
-        for i in range(1, 11):
-            last_loc = np.array([])
-            for j in range(19, -1, -1):
-                tetromino = Tetromino(tetromino_type=piece, main_position=np.array([i, j]),
-                                  rotation=0)
-                if(self.bCheckCollisionAtPosition(tetromino.GetPiecesLocation(tetromino.Position))):
-                    break
-                last_loc = tetromino.GetPiecesLocation(tetromino.Position)
-            if len(last_loc) > 0:
-                self.DrawToPlayerPlayingGround(last_loc)
-                self.PlayingGround = self.PlayingGround + self.PlayerPlayingGround
-                reward = pow(10, self.CheckLineClears(np.unique(np.array(last_loc)[:, 1])))
-                states_to_return.append((self.PlayingGround, reward))
-                self.PlayingGround = self.PlayingGround - self.PlayerPlayingGround
-                self.EraseFromPlayerPlayingGround(last_loc)
+        for r in range(self.TetrominoRotationBases[piece]):
+            for i in range(1, 11):
+                last_loc = np.array([])
+                for j in range(19, -1, -1):
+                    tetromino = Tetromino(tetromino_type=piece, main_position=np.array([i, j]),
+                                      rotation=r)
+                    if(self.bCheckCollisionAtPosition(tetromino.GetPiecesLocation(tetromino.Position))):
+                        break
+                    last_loc = tetromino.GetPiecesLocation(tetromino.Position)
+                if len(last_loc) > 0:
+                    self.DrawToPlayerPlayingGround(last_loc)
+                    self.PlayingGround = self.PlayingGround + self.PlayerPlayingGround
+                    cleared_lines = self.CheckLineClears(np.unique(np.array(last_loc)[:, 1]))
+                    states_to_return.append((self.PlayingGround, cleared_lines))
+                    self.PlayingGround = self.PlayingGround - self.PlayerPlayingGround
+                    self.EraseFromPlayerPlayingGround(last_loc)
 
         self.PlayingGround = livePlayingGround
         self.PlayerPlayingGround = livePlayerPlayingGround
@@ -250,13 +254,13 @@ class TetrisGameInstance:
 
         return np.concatenate((self.PlayingGround.flatten(), self.PlayerPlayingGround.flatten()))
 
-    def GameLoopCNN(self, state, reward):
+    def GameLoopCNN(self, state, lines):
         self.PlayingGround = state
         if self.bTrySpawnTetromino():
-            return (state, reward, self.MyTetromino.Type, False)
+            return (state, lines, self.MyTetromino.Type, False)
         else:
             self.PlayingGround = np.zeros_like(state)
-            return (state, -100000, None, True)
+            return (state, -10, None, True) # hiper parametre olmali
 
 
     def GameLoop(self):
@@ -285,5 +289,3 @@ class TetrisGameInstance:
     def StartGame(self):
 
         self.GameLoop()
-
-
