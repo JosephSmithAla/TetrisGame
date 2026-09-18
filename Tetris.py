@@ -248,7 +248,7 @@ class TetrisGameInstance:
 
     def GetGameCanvasArray(self):
 
-        return np.concatenate(self.PlayingGround.flatten(), self.PlayerPlayingGround.flatten())
+        return np.concatenate((self.PlayingGround.flatten(), self.PlayerPlayingGround.flatten()))
 
     def GameLoopCNN(self, state, reward):
         self.PlayingGround = state
