@@ -105,9 +105,9 @@ class TetrisGameInstance:
         self.TetrominoRotationBases = {"I" : 2, "L" : 4, "S" : 2, "Z" : 2, "O" : 1, "J" : 4, "T" : 4}
         self.MyTetromino = Tetromino(tetromino_type = self.TetrominoTypes[random.randint(0, 6)], main_position = self.DefaultPosition, rotation = 0)
         self.TetrominoCounter = 0
-        #self.GameScreen = pygame.display.set_mode((400, 800))
-        #self.TetrominoColor = (0, 0, 0)
-        #self.EmptySpaceColor = (255, 255, 255)
+        self.GameScreen = None
+        self.TetrominoColor = None
+        self.EmptySpaceColor = None
         self.LinesCleared = 0
 
 
@@ -142,8 +142,10 @@ class TetrisGameInstance:
 
 
 
-
-
+    def ConstructGUI(self):
+        self.GameScreen = pygame.display.set_mode((400, 800))
+        self.TetrominoColor = (0, 0, 0)
+        self.EmptySpaceColor = (255, 255, 255)
 
     def DrawToPlayingGround(self, positions_to_draw):
         for position in positions_to_draw:
