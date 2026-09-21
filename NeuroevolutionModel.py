@@ -150,7 +150,7 @@ class ModelManager:
 
     def CreatePopulation(self):
         for _ in range(self.population_size):
-            NN = NeuralNetwork(200, 200, 4)
+            NN = NeuralNetwork(200, 50, 4)
             NN.death_dispatcher.connect(self.OnNetworkDeath)
             self.Population = np.append(self.Population, NN)
 
@@ -250,6 +250,6 @@ class ModelManager:
             self.bShouldGenerateNextGeneration = True
 
 
-Manager = ModelManager(1000)
+Manager = ModelManager(200)
 Manager.TrainPopulation(10000)
-print("Training Overr")
+print("Training Over")
