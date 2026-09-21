@@ -101,6 +101,7 @@ class TetrisGameInstance:
         self.TetrominoTypes = ["I", "L", "S", "Z", "O", "J", "T"]
         self.TetrominoRotationBases = {"I" : 2, "L" : 4, "S" : 2, "Z" : 2, "O" : 1, "J" : 4, "T" : 4}
         self.MyTetromino = Tetromino(tetromino_type = self.TetrominoTypes[random.randint(0, 6)], main_position = self.DefaultPosition, rotation = 0)
+        self.TetrominoCounter = 0
         #self.GameScreen = pygame.display.set_mode((400, 800))
         #self.TetrominoColor = (0, 0, 0)
         #self.EmptySpaceColor = (255, 255, 255)
@@ -177,7 +178,8 @@ class TetrisGameInstance:
 
     def bTrySpawnTetromino(self):
 
-        self.MyTetromino = Tetromino(tetromino_type= self.TetrominoTypes[random.randint(0, 6)], main_position=np.array([5, 19]), rotation=0)
+        self.MyTetromino = Tetromino(tetromino_type= self.TetrominoTypes[self.TetrominoCounter % 7], main_position=np.array([5, 19]), rotation=0)
+        self.TetrominoCounter +=1
 
         if self.bCheckCollisionAtPosition(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position)):
             return False
@@ -290,4 +292,7 @@ class TetrisGameInstance:
 
     def StartGame(self):
 
-        self.GameLoop()
+        random.shuffle(self.TetrominoTypes)
+        self.TetrominoCounter = 0
+        self.LinesCleared = 0
+        self.Gravity = 1
