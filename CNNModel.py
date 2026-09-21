@@ -1,5 +1,5 @@
 from os import name
-
+from collections import deque
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers, models
@@ -28,7 +28,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         self.game = TetrisGameInstance()
         self.model_update_frequency = frequency
         self.model_update_counter = 0 # hiper parametre olarak eklenmeli EKLENDI
-        self.memory = [] # 20x10np.array (s), int (reward), int (next_piece_enum), done
+        self.memory = deque(maxlen=20000) # 20x10np.array (s), int (reward), int (next_piece_enum), done
         self.epsilon = 1.0
         self.epsilon_min = 0.01
         self.epsilon_decrease_rate = epsilon_decrease_rate
@@ -42,7 +42,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
 
     def memorize(self, state, lines, piece, done):
         if lines >= 0:
-            reward = pow(2, lines) * lines / 8
+            reward = pow(2, lines) * lines * lines / 100
         else:
             reward = lines
         self.memory.append((state, reward, piece, done))
@@ -60,20 +60,22 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
             if decision[1] > 0:
                 lines_sum += decision[1]
             self.memorize(*self.game.GameLoopCNN(*decision))
-        print(self.lines)
         self.lines.append((lines_sum + self.lines[-1]))
 
     def save(self):
         self.model.save('CNNModel.h5')
         np.savez('CNNModel_meta.npz', loss=self.loss_values, lines=self.lines, epsilon=self.epsilon)
 
-    def load(self):
+    def load(self, epsilon = None):
         self.model = models.load_model('CNNModel.h5')
         self.target_model.set_weights(self.model.get_weights())
         file = np.load('CNNModel_meta.npz')
         self.loss_values = file['loss'].tolist()
         self.lines = file['lines'].tolist()
-        self.epsilon = file['epsilon']
+        if epsilon is None:
+            self.epsilon = file['epsilon']
+        else:
+            self.epsilon = epsilon
 
     def optimize(self, batch_size):
         if len(self.memory) < batch_size:
@@ -118,7 +120,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
             segment_ids = tf.constant(filter_id, dtype=tf.int32)
             max_future_qs[fstates_id] = tf.math.segment_max(q_preds, segment_ids).numpy()
 
-        target = rewards + np.float32(0.99) * max_future_qs # bellman equation
+        target = rewards + np.float32(0.997) * max_future_qs # bellman equation
         target = tf.expand_dims(target, axis=-1) # dimensionlari ayni tutmak icin yoksa 1 boyut eksik oluyor
 
         with tf.GradientTape() as tape: # forward pass kayit altina aliniyor ki backward propda gradyan bulunabilsin
@@ -131,26 +133,37 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         self.loss_values.append(loss)
 
     def info(self):
-        print("LOSS:", self.loss_values[-1], " | ", "LINES:", self.lines[-1])
+        print("LOSS:", float(self.loss_values[-1]), " | ", "LINES:", self.lines[-1], " | EPSILON:", self.epsilon)
+
+    def plot(self):
+        fig, ax1 = plt.subplots()
+        ax1.set_xlabel('optimize steps')
+        ax1.set_ylabel('loss (log10)', color='blue')
+        ax1.plot(np.log10(self.loss_values), color='blue')
+
+        ax2 = ax1.twinx()
+        ax2.set_ylabel('lines cleared', color='orange')
+        ax2.plot(self.lines, color='orange')
+        plt.show()
+
+    def play_test(self, play_num):
+        for i in range(play_num):
+            s_r = self.game.getStates(self.game.PlayingGround, self.game.MyTetromino.Type)
+            possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r], dtype=np.float32)
+            decision = s_r[np.argmax(self.model(possible_states, training=False).numpy())]
+            self.game.GameLoopCNN(*decision, gui = True)
 
 
 
 
 
-model = TetrisModel(1e-4, 100, 0.99)
+model = TetrisModel(1e-4, 100, 0.999)
 model.load()
-for i in range(10000):
+for i in range(1000):
     model.optimize(batch_size=64)
     model.play(4)
     model.info()
 model.save()
+model.plot()
+model.play_test(1000)
 
-fig, ax1 = plt.subplots()
-ax1.set_xlabel('optimize steps')
-ax1.set_ylabel('loss', color='blue')
-ax1.plot(model.loss_values, color='blue')
-
-ax2 = ax1.twinx()
-ax2.set_ylabel('lines cleared', color='orange')
-ax2.plot(model.lines, color='orange')
-plt.show()
