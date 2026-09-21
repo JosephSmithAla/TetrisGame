@@ -103,10 +103,11 @@ class TetrisGameInstance:
         self.TetrominoTypes = ["I", "L", "S", "Z", "O", "J", "T"]
         self.TetrominoRotationBases = {"I" : 2, "L" : 4, "S" : 2, "Z" : 2, "O" : 1, "J" : 4, "T" : 4}
         self.MyTetromino = Tetromino(tetromino_type = self.TetrominoTypes[random.randint(0, 6)], main_position = self.DefaultPosition, rotation = 0)
-        self.GameScreen = pygame.display.set_mode((400, 800))
-        self.TetrominoColor = (0, 0, 0)
-        self.EmptySpaceColor = (255, 255, 255)
-        self.points = 0.0000001
+        self.TetrominoCounter = 0
+        #self.GameScreen = pygame.display.set_mode((400, 800))
+        #self.TetrominoColor = (0, 0, 0)
+        #self.EmptySpaceColor = (255, 255, 255)
+        self.LinesCleared = 0
         #self.StartGame() simdilik kapali
 
 
@@ -180,7 +181,8 @@ class TetrisGameInstance:
 
     def bTrySpawnTetromino(self):
 
-        self.MyTetromino = Tetromino(tetromino_type= self.TetrominoTypes[random.randint(0, 6)], main_position=np.array([5, 19]), rotation=0)
+        self.MyTetromino = Tetromino(tetromino_type= self.TetrominoTypes[self.TetrominoCounter % 7], main_position=np.array([5, 19]), rotation=0)
+        self.TetrominoCounter +=1
 
         if self.bCheckCollisionAtPosition(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position)):
             return False
@@ -225,6 +227,7 @@ class TetrisGameInstance:
                 self.EraseFromPlayingGround([column + 1, row - ClearedLineCount] for column in range(10))
                 self.BringDownLines(row - ClearedLineCount)
                 ClearedLineCount += 1
+                self.LinesCleared += 1
         return ClearedLineCount
 
     def LockTetromino(self):
@@ -254,8 +257,10 @@ class TetrisGameInstance:
         pygame.display.flip()
 
     def GetGameCanvasArray(self):
-
-        return np.concatenate((self.PlayingGround.flatten(), self.PlayerPlayingGround.flatten()))
+        canvas = self.PlayingGround
+        for place in self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position):
+            canvas[(20 - place[1], place[0] - 1)] = -1
+        return canvas.flatten()
 
     def GameLoopCNN(self, state, lines, gui = False):
         self.PlayingGround = state
@@ -276,16 +281,15 @@ class TetrisGameInstance:
 
     def GameLoop(self):
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
+        #for event in pygame.event.get():
+            #if event.type == pygame.QUIT:
+                #pygame.quit()
 
-        self.DrawGUI()
+        #self.DrawGUI()
 
         if self.BufferedInput.size > 0:
             self.UpdateControlledTetrominoPosition(self.BufferedInput)
             self.BufferedInput = np.array([])
-
         if self.UpdateControlledTetrominoPosition(np.array([self.MyTetromino.Position[0], self.MyTetromino.Position[1] - self.Gravity])):
             pass
         else:
@@ -293,10 +297,13 @@ class TetrisGameInstance:
             if self.bTrySpawnTetromino():
                 pass
             else:
-                return self.points
-        return -1
+                return -1 , self.LinesCleared
+        return 0, self.LinesCleared
 
 
     def StartGame(self):
 
-        self.GameLoop()
+        random.shuffle(self.TetrominoTypes)
+        self.TetrominoCounter = 0
+        self.LinesCleared = 0
+        self.Gravity = 1

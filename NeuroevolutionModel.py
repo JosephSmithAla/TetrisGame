@@ -33,7 +33,9 @@ class NeuralNetwork:
     def __init__(self,input_count, lay1, lay2 = 4):
         self.Layer_1 =self.InitiatePerceptronLayer(lay1, input_count)
         self.Layer_2 =self.InitiatePerceptronLayer(lay2, lay1)
-        self.fitness = -1
+        self.fitness = 0
+        self.LoopResult = 0
+        self.LinesCleared = 0
         self.GameInstance : Tetris.TetrisGameInstance
         self.death_dispatcher = signal("death_dispatcher")
 
@@ -42,7 +44,9 @@ class NeuralNetwork:
     def __init__(self, layer_1_biases, layer_1_weights, layer_2_biases, layer_2_weights):
         self.Layer_1 =self.LoadPerceptronLayer(layer_1_biases.size, layer_1_weights, layer_1_biases)
         self.Layer_2 =self.LoadPerceptronLayer(layer_2_biases.size, layer_2_weights, layer_2_biases)
-        self.fitness = -1
+        self.fitness = 0
+        self.LoopResult = 0
+        self.LinesCleared = 0
         self.GameInstance : Tetris.TetrisGameInstance
         self.death_dispatcher = signal("death_dispatcher")
 
@@ -105,22 +109,31 @@ class NeuralNetwork:
 
     def GameLoop(self):
 
-        while self.fitness == -1:
+        while self.LoopResult == 0:
             match self.GetModelMoveInput(self.GameInstance.GetGameCanvasArray()):
 
                 case 0:
-                    self.fitness = self.GameInstance.MoveDownInput()
+                    self.GameInstance.MoveDownInput()
+                    self.fitness +=1
                 case 1:
-                    self.fitness = self.GameInstance.MoveRightInput()
+                    self.GameInstance.MoveRightInput()
+                    self.fitness += 1
                 case 2:
-                    self.fitness = self.GameInstance.MoveLeftInput()
+                    self.GameInstance.MoveLeftInput()
+                    self.fitness += 1
                 case 3:
-                    self.fitness = self.GameInstance.RotateInput()
-            self.fitness = self.GameInstance.GameLoop()
+                    self.GameInstance.RotateInput()
+            self.LoopResult, self.LinesCleared = self.GameInstance.GameLoop()
+        self.fitness += self.LinesCleared * 50000
+
+
 
         self.death_dispatcher.send(self)
 
     def PlayTetris(self):
+        self.fitness = 0
+        self.LoopResult = 0
+        self.LinesCleared = 0
         self.GameInstance = Tetris.TetrisGameInstance()
         self.GameInstance.StartGame()
         self.GameLoop()
@@ -137,7 +150,7 @@ class ModelManager:
 
     def CreatePopulation(self):
         for _ in range(self.population_size):
-            NN = NeuralNetwork(400, 100, 4)
+            NN = NeuralNetwork(200, 200, 4)
             NN.death_dispatcher.connect(self.OnNetworkDeath)
             self.Population = np.append(self.Population, NN)
 
@@ -145,18 +158,18 @@ class ModelManager:
 
         new_generation = []
 
-        sorted_indices = np.argsort([network.fitness for network in self.Population])
-        self.Population = self.Population[sorted_indices][::-1]
-
+        sorted_indices = np.argsort([network.fitness for network in self.Population])[::-1]
+        self.Population = self.Population[sorted_indices]
+        print([network.fitness for network in self.Population])
         for i in range(int(self.population_size / 100 * 10)):
             new_generation.append(self.Population[i])
-
-        normalised_fitness_weights = np.array([network.fitness for network in self.Population]) / np.array([network.fitness for network in self.Population]).sum()
+        sum_weights = np.array([network.fitness for network in self.Population]).sum()
+        normalised_fitness_weights = np.array([network.fitness / sum_weights for network in self.Population])
         rng = np.random.default_rng()
 
         new_parents = []
 
-        for i in range(int(self.population_size - (self.population_size / 100 * 10))):
+        for i in range(int(self.population_size  / 100 * 90)):
             new_parents.append(rng.choice(self.Population, p=normalised_fitness_weights))
 
         self.Population = np.concatenate((np.array(new_generation), self.CrossParents(np.array(new_parents))))
@@ -189,7 +202,7 @@ class ModelManager:
         for i in range(len(p1_w)):
             selected_weights = []
             for j in range(len(p1_w[i])):
-                new_weight = random.choice([p1_w, p2_w])[i][j] + self.Mutation_Rate * random.choices(arguments, weights=prob_weights, k=1)[0]
+                new_weight = self.LimitNormalised(random.choice([p1_w, p2_w])[i][j] + self.Mutation_Rate * random.choices(arguments, weights=prob_weights, k=1)[0])
                 selected_weights.append(new_weight)
             new_weights.append(np.array(selected_weights))
         return np.array(new_weights)
@@ -200,37 +213,31 @@ class ModelManager:
         weights = [1 - self.Mutation_Chance, self.Mutation_Chance / 2, self.Mutation_Chance / 2]
 
         for i in range(p1_b.size):
-            new_bias = random.choice([p1_b, p2_b])[i] + self.Mutation_Rate * random.choices(arguments, weights=weights, k=1)[0]
+            new_bias = self.LimitNormalised(random.choice([p1_b, p2_b])[i] + self.Mutation_Rate * random.choices(arguments, weights=weights, k=1)[0])
 
             mutated_biases.append(new_bias)
 
         return np.array(mutated_biases)
 
+    def LimitNormalised(self, input):
 
-
-    def MutateBias(self, biases):
-        mutated_biases = np.array([])
-        arguments = [0, -1, 1]
-        weights = [1 - self.Mutation_Chance, self.Mutation_Chance / 2, self.Mutation_Chance / 2]
-
-        for bias in biases:
-            new_bias = bias + self.Mutation_Rate *  random.choices(arguments, weights=weights, k=1)[0]
-
-            mutated_biases = np.append(mutated_biases, new_bias)
-
-        return mutated_biases
+        if input >= 1:
+            return 1
+        elif input <= -1:
+            return -1
+        else:
+            return input
 
     def TrainPopulation(self, cycle_count):
         self.CreatePopulation()
         for _ in range(cycle_count):
             self.ModelsPlay()
-            while not self.bShouldGenerateNextGeneration:
-                time.sleep(1)
+            #while not self.bShouldGenerateNextGeneration:
+                #time.sleep(1)
             self.GenerateNewPopulation()
         sorted_indices = np.argsort([network.fitness for network in self.Population])
-        self.Population = self.Population[sorted_indices][::-1]
-        the_fittest = self.Population[0]
-        the_fittest.SaveModel()
+        self.Population = self.Population[sorted_indices][::-1],
+        print("Over")
 
     def ModelsPlay(self):
         for Network in self.Population:
@@ -243,3 +250,6 @@ class ModelManager:
             self.bShouldGenerateNextGeneration = True
 
 
+Manager = ModelManager(1000)
+Manager.TrainPopulation(10000)
+print("Training Overr")
