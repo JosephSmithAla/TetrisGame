@@ -148,20 +148,48 @@ class TetrisGameInstance:
         self.EmptySpaceColor = (255, 255, 255)
 
     def DrawToPlayingGround(self, positions_to_draw):
-        for position in positions_to_draw:
-            self.PlayingGround[(20 - position[1], position[0] - 1)] = 1
+
+        positions = np.atleast_2d(np.asarray(positions_to_draw))
+        if positions.size == 0:
+            return
+
+        rows = 20 - positions[:, 1]
+        columns = positions[:, 0] - 1
+
+        self.PlayingGround[rows, columns] = 1
 
     def EraseFromPlayingGround(self, positions_to_erase):
-        for position in positions_to_erase:
-            self.PlayingGround[(20 - position[1], position[0] - 1)] = 0
+
+        positions = np.atleast_2d(np.asarray(positions_to_erase))
+        if positions.size == 0:
+            return
+
+        rows = 20 - positions[:, 1]
+        columns = positions[:, 0] - 1
+
+        self.PlayingGround[rows, columns] = 0
 
     def DrawToPlayerPlayingGround(self, positions_to_draw):
-        for position in positions_to_draw:
-            self.PlayerPlayingGround[(20 - position[1], position[0] - 1)] = 1
+
+        positions = np.atleast_2d(np.asarray(positions_to_draw))
+        if positions.size == 0:
+            return
+
+        rows = 20 - positions[:, 1]
+        columns = positions[:, 0] - 1
+
+        self.PlayerPlayingGround[rows, columns] = 1
 
     def EraseFromPlayerPlayingGround(self, positions_to_erase):
-        for position in positions_to_erase:
-            self.PlayerPlayingGround[(20 - position[1], position[0] - 1)] = 0
+
+        positions = np.atleast_2d(np.asarray(positions_to_erase))
+        if positions.size == 0:
+            return
+
+        rows = 20 - positions[:, 1]
+        columns = positions[:, 0] - 1
+
+        self.PlayerPlayingGround[rows, columns] = 0
 
     def bCheckCollisionAtPosition(self, locations):
 
@@ -220,13 +248,13 @@ class TetrisGameInstance:
     def BringDownLines(self, clear_row):
         for i in range(clear_row, 20):
             self.PlayingGround[20 - i] = self.PlayingGround[20 - (i + 1)] # np.all dan filtre yapilabilir, numpy c ile islme yaptigi icin daha hizli checkler ve siler ama ne kadar gerekli bilmiyorum
-        self.EraseFromPlayingGround([column + 1, 20] for column in range(10))
+        self.EraseFromPlayingGround([[column + 1, 20] for column in range(10)])
 
     def CheckLineClears(self, rows):
         ClearedLineCount = 0
         for row in rows:
             if self.PlayingGround[20 - (row - ClearedLineCount)].sum() == 10:
-                self.EraseFromPlayingGround([column + 1, row - ClearedLineCount] for column in range(10))
+                self.EraseFromPlayingGround([[column + 1, row - ClearedLineCount] for column in range(10)])
                 self.BringDownLines(row - ClearedLineCount)
                 ClearedLineCount += 1
                 self.LinesCleared += 1
