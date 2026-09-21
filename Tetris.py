@@ -6,14 +6,48 @@ import pygame
 
 
 class Tetromino:
-    def __init__(self, tetromino_type="T", main_position=np.array([0, 0]), rotation=0):
+    def __init__(self, tetromino_type="T", main_position=np.array([0, 0])):
         self.Type = tetromino_type
         self.Position = main_position
-        self.Rotation = rotation
-        self.main_piece = None
-        self.sub_piece1 = None
-        self.sub_piece2 = None
-        self.sub_piece3 = None
+        self.Rotation : int
+        self.RotationMaxCount : int
+        self.TETROMINO_SHAPES = {
+            "I": [
+                [(0, 0), (0, 1), (0, -1), (0, -2)],
+                [(0, 0), (-1, 0), (1, 0), (2, 0)],
+            ],
+            "L": [
+                [(0, 0), (0, 1), (0, -1), (1, -1)],
+                [(0, 0), (-1, 0), (1, 0), (1, 1)],
+                [(0, 0), (0, -1), (0, 1), (-1, 1)],
+                [(0, 0), (1, 0), (-1, 0), (-1, -1)],
+            ],
+            "S": [
+                [(0, 0), (1, 0), (0, -1), (-1, -1)],
+                [(0, 0), (0, 1), (1, 0), (1, -1)],
+            ],
+            "Z": [
+                [(0, 0), (-1, 0), (0, -1), (1, -1)],
+                [(0, 0), (0, 1), (-1, 0), (-1, -1)],
+            ],
+            "O": [[(0, 0), (1, 0), (0, -1), (1, -1)]],
+            "J": [
+                [(0, 0), (0, 1), (0, -1), (-1, -1)],
+                [(0, 0), (1, 0), (-1, 0), (1, -1)],
+                [(0, 0), (0, -1), (0, 1), (1, 1)],
+                [(0, 0), (-1, 0), (1, 0), (-1, 1)],
+            ],
+            "T": [
+                [(0, 0), (1, 0), (-1, 0), (0, -1)],
+                [(0, 0), (0, 1), (0, -1), (1, 0)],
+                [(0, 0), (-1, 0), (1, 0), (0, 1)],
+                [(0, 0), (0, -1), (0, 1), (-1, 0)],
+            ],
+        }
+        self.main_piece : int
+        self.sub_piece1 : int
+        self.sub_piece2 : int
+        self.sub_piece3 : int
         self.Construct()
 
     def Construct(self):
@@ -53,43 +87,25 @@ class Tetromino:
                 self.sub_piece1 = np.array([1, 0])
                 self.sub_piece2 = np.array([-1, 0])
                 self.sub_piece3 = np.array([0, -1])
-        for r in range(self.Rotation):
-            self.GetRotatedPositions()
+
+        self.RotationMaxCount = len(self.TETROMINO_SHAPES[self.Type])
+
+
 
     def GetPiecesLocation(self, main_position):
         return [main_position + self.main_piece, main_position + self.sub_piece1, main_position + self.sub_piece2,
                 main_position + self.sub_piece3]
 
 
-    def GetRotatedPositions(self):
+    def GetRotatedPositions(self, rotate_count):
+        locs = np.array(self.TETROMINO_SHAPES[self.Type][(self.Rotation + rotate_count) % self.RotationMaxCount])
+        return [self.Position + locs[0], self.Position + locs[1], self.Position + locs[2], self.Position + locs[3]]
 
-        placeholder_y = self.sub_piece1[1]
-        self.sub_piece1[1] = -self.sub_piece1[0]
-        self.sub_piece1[0] = placeholder_y
+    def Rotate(self, rotate_count):
 
-        placeholder_y = self.sub_piece2[1]
-        self.sub_piece2[1] = -self.sub_piece2[0]
-        self.sub_piece2[0] = placeholder_y
+        self.main_piece, self.sub_piece1, self.sub_piece2, self.sub_piece3 = self.GetRotatedPositions(rotate_count)
 
-        placeholder_y = self.sub_piece3[1]
-        self.sub_piece3[1] = -self.sub_piece3[0]
-        self.sub_piece3[0] = placeholder_y
-
-        return self.GetPiecesLocation(self.Position)
-
-    def RevertRotation(self):
-
-        placeholder_y = self.sub_piece1[1]
-        self.sub_piece1[1] = self.sub_piece1[0]
-        self.sub_piece1[0] = -placeholder_y
-
-        placeholder_y = self.sub_piece2[1]
-        self.sub_piece2[1] = self.sub_piece2[0]
-        self.sub_piece2[0] = -placeholder_y
-
-        placeholder_y = self.sub_piece3[1]
-        self.sub_piece3[1] = self.sub_piece3[0]
-        self.sub_piece3[0] = -placeholder_y
+        self.Rotation += rotate_count
 
 
 
@@ -102,7 +118,6 @@ class TetrisGameInstance:
         self.PlayerPlayingGround = np.zeros((20, 10), dtype=int)
         self.TetrominoTypes = ["I", "L", "S", "Z", "O", "J", "T"]
         self.GameSpawnSeed = self.TetrominoTypes
-        self.TetrominoRotationBases = {"I" : 2, "L" : 4, "S" : 2, "Z" : 2, "O" : 1, "J" : 4, "T" : 4}
         self.MyTetromino = None
         self.TetrominoCounter = 0
         self.GameScreen = None
@@ -238,11 +253,12 @@ class TetrisGameInstance:
 
         self.EraseFromPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
 
-        if self.bCheckCollisionAtPosition(self.MyTetromino.GetRotatedPositions()):
-            self.MyTetromino.RevertRotation()
+        locs = self.MyTetromino.GetRotatedPositions(1)
 
-        self.DrawToPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
-        self.GameLoop()
+        if not self.bCheckCollisionAtPosition(locs):
+            self.MyTetromino.Rotate(1)
+            self.DrawToPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
+            self.GameLoop()
 
 
     def BringDownLines(self, clear_row):
@@ -287,7 +303,7 @@ class TetrisGameInstance:
         pygame.display.flip()
 
     def GetGameCanvasArray(self):
-        canvas = self.PlayingGround
+        canvas = self.PlayingGround.copy()
         for place in self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position):
             canvas[(20 - place[1], place[0] - 1)] = -1
         return canvas.flatten()

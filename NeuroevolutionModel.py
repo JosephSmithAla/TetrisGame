@@ -59,9 +59,9 @@ class NeuralNetwork:
 
 
     def GetModelMoveInput(self, input):
-        output = self.FeedForward(input).tolist()
+        output = self.FeedForward(input)
 
-        return np.argmax(self.FeedForward(input))
+        return np.argmax(output)
 
     def GameLoop(self):
 
@@ -79,8 +79,9 @@ class NeuralNetwork:
                     self.fitness += 1
                 case 3:
                     self.GameInstance.RotateInput()
+
             self.LoopResult, self.LinesCleared = self.GameInstance.GameLoop()
-        self.fitness += self.LinesCleared * 20000
+        self.fitness += self.LinesCleared * 100000
 
 
 
@@ -108,7 +109,7 @@ class ModelManager:
     def CreatePopulation(self):
         arr = []
         for _ in range(self.population_size):
-            NN = NeuralNetwork(200, 400, 4)
+            NN = NeuralNetwork(200, 800, 4)
             NN.death_dispatcher.connect(self.OnNetworkDeath)
             arr.append(NN)
         self.Population = np.array(arr)
@@ -166,9 +167,11 @@ class ModelManager:
     def TrainPopulation(self, cycle_count):
         self.CreatePopulation()
         for _ in range(cycle_count):
+            print("playing")
             self.ModelsPlay()
             #while not self.bShouldGenerateNextGeneration:
                 #time.sleep(1)
+            print("breeding")
             self.GenerateNewPopulation()
         print("Over")
 
