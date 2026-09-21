@@ -103,7 +103,7 @@ class Tetromino:
 
     def Rotate(self, rotate_count):
 
-        self.main_piece, self.sub_piece1, self.sub_piece2, self.sub_piece3 = np.array(self.GetRotatedPositions(rotate_count)) - self.Position
+        self.main_piece, self.sub_piece1, self.sub_piece2, self.sub_piece3 = self.GetRotatedPositions(rotate_count)
 
         self.Rotation += rotate_count
 
@@ -129,8 +129,8 @@ class TetrisGameInstance:
     def getStates(self, state, piece): #canli oynanan kaydi etkilemeyen generate state fonksiyonu,zaten cnn kullanacak sadece o yuzden canliya mudahale etmeisnde sorun yok gibi
         states_to_return = []
 
-        livePlayingGround = self.PlayingGround
-        livePlayerPlayingGround = self.PlayerPlayingGround
+        livePlayingGround = self.PlayingGround.copy()
+        livePlayerPlayingGround = self.PlayerPlayingGround.copy()
         self.PlayerPlayingGround = np.zeros((20, 10), dtype=int)
         self.PlayingGround = state
         for r in range(self.TetrominoRotationBases[piece]):
@@ -138,7 +138,7 @@ class TetrisGameInstance:
                 last_loc = np.array([])
                 for j in range(19, -1, -1):
                     tetromino = Tetromino(tetromino_type=piece, main_position=np.array([i, j]),
-                                      )
+                                      rotation=r)
                     if(self.bCheckCollisionAtPosition(tetromino.GetPiecesLocation(tetromino.Position))):
                         break
                     last_loc = tetromino.GetPiecesLocation(tetromino.Position)
@@ -151,8 +151,8 @@ class TetrisGameInstance:
                     self.PlayingGround = cpy
                     self.EraseFromPlayerPlayingGround(last_loc)
 
-        self.PlayingGround = livePlayingGround
-        self.PlayerPlayingGround = livePlayerPlayingGround
+        self.PlayingGround = livePlayingGround.copy()
+        self.PlayerPlayingGround = livePlayerPlayingGround.copy()
         return states_to_return
 
 
@@ -226,7 +226,7 @@ class TetrisGameInstance:
 
     def bTrySpawnTetromino(self):
 
-        self.MyTetromino = Tetromino(tetromino_type= self.GameSpawnSeed[self.TetrominoCounter % 7], main_position=np.array([5, 19]))
+        self.MyTetromino = Tetromino(tetromino_type= self.GameSpawnSeed[self.TetrominoCounter % 7], main_position=np.array([5, 19]), rotation=0)
         self.TetrominoCounter +=1
 
         if self.bCheckCollisionAtPosition(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position)):
@@ -322,7 +322,7 @@ class TetrisGameInstance:
         if self.bTrySpawnTetromino():
             return (state, lines, self.MyTetromino.Type, False)
         else:
-            self.PlayingGround = np.zeros_like(state)
+            self.StartGame()
             return (state, -100, None, True) # hiper parametre olmali
 
 
@@ -357,3 +357,4 @@ class TetrisGameInstance:
         self.TetrominoCounter = 1
         self.LinesCleared = 0
         self.Gravity = 1
+

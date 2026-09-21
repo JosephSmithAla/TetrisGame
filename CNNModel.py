@@ -42,7 +42,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
 
     def memorize(self, state, lines, piece, done):
         if lines >= 0:
-            reward = pow(2, lines) * lines * lines / 100
+            reward = pow(2, lines) * lines * lines / 10
         else:
             reward = lines
         self.memory.append((state, reward, piece, done))
@@ -147,6 +147,8 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         plt.show()
 
     def play_test(self, play_num):
+        self.game.ConstructGUI()
+        self.game.StartGame()
         for i in range(play_num):
             s_r = self.game.getStates(self.game.PlayingGround, self.game.MyTetromino.Type)
             possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r], dtype=np.float32)
