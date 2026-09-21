@@ -304,7 +304,8 @@ class TetrisGameInstance:
 
     def StartGame(self):
 
-
+        self.PlayingGround = np.zeros((20, 10), dtype=int)
+        self.PlayerPlayingGround = np.zeros((20, 10), dtype=int)
         random.shuffle(self.GameSpawnSeed)
         self.TetrominoCounter = 0
         self.LinesCleared = 0
