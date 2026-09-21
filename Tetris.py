@@ -9,7 +9,7 @@ class Tetromino:
     def __init__(self, tetromino_type="T", main_position=np.array([0, 0])):
         self.Type = tetromino_type
         self.Position = main_position
-        self.Rotation : int
+        self.Rotation = 0
         self.RotationMaxCount : int
         self.TETROMINO_SHAPES = {
             "I": [
@@ -126,34 +126,34 @@ class TetrisGameInstance:
         self.LinesCleared = 0
 
 
-    def getStates(self, state, piece): #canli oynanan kaydi etkilemeyen generate state fonksiyonu,zaten cnn kullanacak sadece o yuzden canliya mudahale etmeisnde sorun yok gibi
+
+
+    def getStates(self, state, piece): #canli oynanan kaydi etkilemeyen generate state fonksiyonu, (state np.array((20,10)), cleared_lines int)
         states_to_return = []
 
         livePlayingGround = self.PlayingGround.copy()
-        livePlayerPlayingGround = self.PlayerPlayingGround.copy()
-        self.PlayerPlayingGround = np.zeros((20, 10), dtype=int)
-        self.PlayingGround = state
-        tetromino = Tetromino(tetromino_type=piece, main_position=np.array([5, 19]),
-                              rotation=0)
-        for r in range(self.TetrominoRotationBases[piece]):
-            for i in range(1, 11):
+        liveLinesCleared = self.LinesCleared
+        self.PlayingGround = state.copy()
+
+        tetromino = Tetromino(tetromino_type=piece, main_position=np.array([5, 19]))
+        for r in range(tetromino.RotationMaxCount):
+            for i in range(0, 11):
                 last_loc = np.array([])
                 for j in range(19, -1, -1):
-
-                    if(self.bCheckCollisionAtPosition(tetromino.GetPiecesLocation(tetromino.Position))):
+                    tetromino.Position = np.array([i, j])
+                    rot_locations = tetromino.GetRotatedPositions(r)
+                    if self.bCheckCollisionAtPosition(rot_locations):
                         break
-                    last_loc = tetromino.GetPiecesLocation(tetromino.Position)
+                    last_loc = rot_locations
                 if len(last_loc) > 0:
-                    cpy = self.PlayingGround
-                    self.DrawToPlayerPlayingGround(last_loc)
-                    self.PlayingGround = self.PlayingGround + self.PlayerPlayingGround
+                    cpy = self.PlayingGround.copy()
+                    self.DrawToPlayingGround(last_loc)
                     cleared_lines = self.CheckLineClears(np.unique(np.array(last_loc)[:, 1]))
                     states_to_return.append((self.PlayingGround, cleared_lines))
                     self.PlayingGround = cpy
-                    self.EraseFromPlayerPlayingGround(last_loc)
 
         self.PlayingGround = livePlayingGround.copy()
-        self.PlayerPlayingGround = livePlayerPlayingGround.copy()
+        self.LinesCleared = liveLinesCleared
         return states_to_return
 
 
@@ -227,7 +227,7 @@ class TetrisGameInstance:
 
     def bTrySpawnTetromino(self):
 
-        self.MyTetromino = Tetromino(tetromino_type= self.GameSpawnSeed[self.TetrominoCounter % 7], main_position=np.array([5, 19]), rotation=0)
+        self.MyTetromino = Tetromino(tetromino_type= self.GameSpawnSeed[self.TetrominoCounter % 7], main_position=np.array([5, 19]))
         self.TetrominoCounter +=1
 
         if self.bCheckCollisionAtPosition(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position)):
@@ -353,8 +353,7 @@ class TetrisGameInstance:
         self.PlayingGround = np.zeros((20, 10), dtype=int)
         self.PlayerPlayingGround = np.zeros((20, 10), dtype=int)
         random.shuffle(self.GameSpawnSeed)
-        self.MyTetromino = Tetromino(tetromino_type=self.GameSpawnSeed[0], main_position=self.DefaultPosition, rotation=0)
+        self.MyTetromino = Tetromino(tetromino_type=self.GameSpawnSeed[0], main_position=self.DefaultPosition)
         self.TetrominoCounter = 1
         self.LinesCleared = 0
         self.Gravity = 1
-

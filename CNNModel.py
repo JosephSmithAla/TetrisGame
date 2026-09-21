@@ -26,6 +26,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         self.model.summary()
 
         self.game = TetrisGameInstance()
+        self.game.StartGame()
         self.model_update_frequency = frequency
         self.model_update_counter = 0 # hiper parametre olarak eklenmeli EKLENDI
         self.memory = deque(maxlen=20000) # 20x10np.array (s), int (reward), int (next_piece_enum), done
@@ -39,13 +40,14 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
     def sample(self, sample_size):
         return random.sample(self.memory, sample_size)
 
+    def calculate_reward(self, lines):
+        if lines >= 0:
+            return (pow(2, lines) * lines * lines) / 100.0
+        else:
+            return float(lines)
 
     def memorize(self, state, lines, piece, done):
-        if lines >= 0:
-            reward = pow(2, lines) * lines * lines / 10
-        else:
-            reward = lines
-        self.memory.append((state, reward, piece, done))
+        self.memory.append((state, self.calculate_reward(lines), piece, done))
 
     def play(self, play_num):
         lines_sum = 0
@@ -54,7 +56,10 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
             rand = random.random()
             if self.epsilon < rand: #epsilon-greedy algoritmasi
                 possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r], dtype=np.float32) # hem iceride kanal ekliyorus axis -1 ile hem de disaridan sariyoruz boylelikle dis boyut da artiyor
-                decision = s_r[np.argmax(self.model(possible_states, training=False).numpy())]
+                possible_rewards = np.array([item[1] for item in s_r], dtype=np.float32)
+                future_potentials = self.model(possible_states, training=False).numpy().flatten()
+                q_values = possible_rewards + 0.997 * future_potentials
+                decision = s_r[np.argmax(q_values)]
             else:
                 decision = random.choice(s_r)
             if decision[1] > 0:
@@ -159,7 +164,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
 
 
 
-model = TetrisModel(1e-4, 100, 0.999)
+model = TetrisModel(1e-3, 100, 0.999)
 model.load()
 for i in range(1000):
     model.optimize(batch_size=64)
