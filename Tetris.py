@@ -103,7 +103,7 @@ class Tetromino:
 
     def Rotate(self, rotate_count):
 
-        self.main_piece, self.sub_piece1, self.sub_piece2, self.sub_piece3 = self.GetRotatedPositions(rotate_count)
+        self.main_piece, self.sub_piece1, self.sub_piece2, self.sub_piece3 = np.array(self.TETROMINO_SHAPES[self.Type][(self.Rotation + rotate_count) % self.RotationMaxCount])
 
         self.Rotation += rotate_count
 
@@ -138,7 +138,7 @@ class TetrisGameInstance:
                 last_loc = np.array([])
                 for j in range(19, -1, -1):
                     tetromino = Tetromino(tetromino_type=piece, main_position=np.array([i, j]),
-                                      rotation=r)
+                                      )
                     if(self.bCheckCollisionAtPosition(tetromino.GetPiecesLocation(tetromino.Position))):
                         break
                     last_loc = tetromino.GetPiecesLocation(tetromino.Position)
@@ -226,7 +226,7 @@ class TetrisGameInstance:
 
     def bTrySpawnTetromino(self):
 
-        self.MyTetromino = Tetromino(tetromino_type= self.GameSpawnSeed[self.TetrominoCounter % 7], main_position=np.array([5, 19]), rotation=0)
+        self.MyTetromino = Tetromino(tetromino_type= self.GameSpawnSeed[self.TetrominoCounter % 7], main_position=np.array([5, 19]))
         self.TetrominoCounter +=1
 
         if self.bCheckCollisionAtPosition(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position)):

@@ -1,12 +1,10 @@
-from abc import abstractclassmethod
-from typing import List
-
 import numpy as np
 from multipledispatch import dispatch
 import Tetris
 import time
 import random
 from concurrent.futures import ProcessPoolExecutor
+import os
 
 
 
@@ -18,14 +16,14 @@ class NeuralNetwork:
         lay1_weights = 2 * np.random.rand(lay1_count, input_count) - 1
         lay1_biases = 2 * np.random.rand(lay1_count) - 1
         lay2_weights = 2 * np.random.rand(lay2_count, lay1_count) - 1
-        lay2_biases = 2 * np.random.rand(lay1_count) - 1
+        lay2_biases = 2 * np.random.rand(lay2_count) - 1
 
-        return np.array([lay1_weights, lay1_biases, lay2_weights, lay2_biases])
+        return [lay1_weights, lay1_biases, lay2_weights, lay2_biases]
 
-    def FeedForward(input = np.array([]), weights_and_biases = np.array([])):
+    def FeedForward(input = np.array([]), weights_and_biases = []):
 
-        Z1 = np.dot(weights_and_biases[0], input) + weights_and_biases[1]
-        Z2 = np.dot(weights_and_biases[2], np.maximum(0, Z1)) + weights_and_biases[3]
+        Z1 = np.dot(np.array(weights_and_biases[0]), input) + weights_and_biases[1]
+        Z2 = np.dot(np.array(weights_and_biases[2]), np.maximum(0, Z1)) + weights_and_biases[3]
 
         return Z2
 
@@ -38,10 +36,11 @@ class NeuralNetwork:
 
         GameInstance = Tetris.TetrisGameInstance()
         GameInstance.StartGame()
+        LoopResult = 0
 
         fitness = 0
         while LoopResult == 0:
-            match NeuralNetwork.GetModelMoveInput(NeuralNetwork.GameInstance.GetGameCanvasArray(),weights_and_biases):
+            match NeuralNetwork.GetModelMoveInput(GameInstance.GetGameCanvasArray(),weights_and_biases):
 
                 case 0:
                     GameInstance.MoveDownInput()
@@ -57,7 +56,7 @@ class NeuralNetwork:
 
             LoopResult, LinesCleared = GameInstance.GameLoop()
         fitness += LinesCleared * 100000
-
+        return fitness, LinesCleared
 
     def PlayTetris(weights_and_biases):
         fitness = 0
@@ -72,56 +71,59 @@ class NeuralNetwork:
 class ModelManager:
     def __init__(self, population_size):
         self.population_size = population_size
-        self.Population = np.array([])
-        self.fitnesses = np.array([])
+        self.Population = []
+        self.fitness_arr = np.array([])
         self.death_counter = 0
         self.bShouldGenerateNextGeneration = False
         self.Mutation_Chance = 0.05
         self.Mutation_Rate = 0.1
 
     def CreatePopulation(self):
-        arr = []
+
         for _ in range(self.population_size):
-            NN = NeuralNetwork.CreateLayers(400, 200, 4)#input - layer 1 , layer 2, NN = wbwb
-            arr.append(NN)
-        self.Population = np.array(arr)
+            NN = NeuralNetwork.CreateLayers(200, 200, 4)#input - layer 1 , layer 2, NN = wbwb
+            self.Population.append(NN)
+
 
     def GenerateNewPopulation(self):
 
 
         new_generation = []
-        sorted_indices = np.argsort(self.fitnesses)[::-1]
-        self.Population = self.Population[sorted_indices]
-        print(self.Population[0].fitness)
+        sorted_indices = np.argsort(self.fitness_arr)[::-1]
+        self.Population = [self.Population[i] for i in sorted_indices]
+        self.fitness_arr = self.fitness_arr[sorted_indices]
+        print(self.fitness_arr[0])
 
-        new_generation += self.Population[0 : int(self.population_size * 5 / 100)].tolist()
+        new_generation += self.Population[0 : int(self.population_size * 5 / 100)]
 
-        sum_fitness = sum(fitness_arr)
-        normalised_fitness_weights = np.array(fitness_arr) / sum_fitness
+        sum_fitness = self.fitness_arr.sum()
+        normalised_fitness_weights = self.fitness_arr / sum_fitness
         rng = np.random.default_rng()
 
+        indices = rng.choice(len(self.Population), p=normalised_fitness_weights, size=int(self.population_size / 100 * 95))
 
+        new_parents = [self.Population[i] for i in indices]
 
-        new_parents = rng.choice(self.Population, p=normalised_fitness_weights, size=int(self.population_size  / 100 * 95))
+        self.Population = new_generation + self.CrossParents(new_parents)
 
-        self.Population = np.concatenate((np.array(new_generation), self.CrossParents(new_parents)))
         self.bShouldGenerateNextGeneration = False
         self.death_counter = 0
+        self.fitness_arr = np.zeros(self.fitness_arr.shape)
 
     def CrossParents(self, parents : np.ndarray):
         arr = []
-        for i in range(0, parents.size, 2):
+        for i in range(0, len(parents), 2):
             for _ in range(2):
 
-                childBias1 = self.CrossoverAndMutate(parents[i].Layer_1_biases, parents[i + 1].Layer_1_biases)
-                childWeight1 = self.CrossoverAndMutate(parents[i].Layer_1_weights, parents[i + 1].Layer_1_weights)
-                childBias2 = self.CrossoverAndMutate(parents[i].Layer_2_biases, parents[i + 1].Layer_2_biases)
-                childWeight2 = self.CrossoverAndMutate(parents[i].Layer_2_weights, parents[i + 1].Layer_2_weights)
+                childWeight1 = self.CrossoverAndMutate(parents[i][0], parents[i + 1][0])
+                childBias1 = self.CrossoverAndMutate(parents[i][1], parents[i + 1][1])
+                childWeight2 = self.CrossoverAndMutate(parents[i][2], parents[i + 1][2])
+                childBias2 = self.CrossoverAndMutate(parents[i][3], parents[i + 1][3])
 
-                NN = NeuralNetwork(childBias1, childWeight1, childBias2, childWeight2)
+                NN = [childWeight1, childBias1, childWeight2, childBias2]
                 arr.append(NN)
 
-        return np.array(arr)
+        return arr
 
     def CrossoverAndMutate(self, p1_arr : np.ndarray, p2_arr : np.ndarray):
 
@@ -138,11 +140,16 @@ class ModelManager:
     def TrainPopulation(self, cycle_count):
         self.CreatePopulation()
 
-        for _ in range(cycle_count):
-            with ProcessPoolExecutor as Executor:
-                fitness_results = List(Executor.map(NeuralNetwork.PlayTetris, self.Population))
+        cpu_count = os.cpu_count() or 4
 
-            self.GenerateNewPopulation()
+        chunk_size = max(1, self.population_size // (cpu_count * 2))
+
+        with ProcessPoolExecutor(max_workers=cpu_count) as Executor:
+            for _ in range(cycle_count):
+
+                self.fitness_arr = np.array(list(Executor.map(NeuralNetwork.PlayTetris, self.Population, chunksize=chunk_size)))
+
+                self.GenerateNewPopulation()
 
         print("Over")
 
