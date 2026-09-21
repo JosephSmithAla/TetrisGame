@@ -9,7 +9,7 @@ class Tetromino:
     def __init__(self, tetromino_type="T", main_position=np.array([0, 0])):
         self.Type = tetromino_type
         self.Position = main_position
-        self.Rotation : int
+        self.Rotation = 0
         self.RotationMaxCount : int
         self.TETROMINO_SHAPES = {
             "I": [
@@ -103,7 +103,7 @@ class Tetromino:
 
     def Rotate(self, rotate_count):
 
-        self.main_piece, self.sub_piece1, self.sub_piece2, self.sub_piece3 = self.GetRotatedPositions(rotate_count)
+        self.main_piece, self.sub_piece1, self.sub_piece2, self.sub_piece3 = np.array(self.GetRotatedPositions(rotate_count)) - self.Position
 
         self.Rotation += rotate_count
 
@@ -138,7 +138,7 @@ class TetrisGameInstance:
                 last_loc = np.array([])
                 for j in range(19, -1, -1):
                     tetromino = Tetromino(tetromino_type=piece, main_position=np.array([i, j]),
-                                      rotation=r)
+                                      )
                     if(self.bCheckCollisionAtPosition(tetromino.GetPiecesLocation(tetromino.Position))):
                         break
                     last_loc = tetromino.GetPiecesLocation(tetromino.Position)
@@ -226,7 +226,7 @@ class TetrisGameInstance:
 
     def bTrySpawnTetromino(self):
 
-        self.MyTetromino = Tetromino(tetromino_type= self.GameSpawnSeed[self.TetrominoCounter % 7], main_position=np.array([5, 19]), rotation=0)
+        self.MyTetromino = Tetromino(tetromino_type= self.GameSpawnSeed[self.TetrominoCounter % 7], main_position=np.array([5, 19]))
         self.TetrominoCounter +=1
 
         if self.bCheckCollisionAtPosition(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position)):
@@ -259,7 +259,8 @@ class TetrisGameInstance:
             self.MyTetromino.Rotate(1)
             self.DrawToPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
             self.GameLoop()
-
+        else:
+            self.DrawToPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
 
     def BringDownLines(self, clear_row):
         for i in range(clear_row, 20):
@@ -352,7 +353,7 @@ class TetrisGameInstance:
         self.PlayingGround = np.zeros((20, 10), dtype=int)
         self.PlayerPlayingGround = np.zeros((20, 10), dtype=int)
         random.shuffle(self.GameSpawnSeed)
-        self.MyTetromino = Tetromino(tetromino_type=self.GameSpawnSeed[0], main_position=self.DefaultPosition, rotation=0)
+        self.MyTetromino = Tetromino(tetromino_type=self.GameSpawnSeed[0], main_position=self.DefaultPosition)
         self.TetrominoCounter = 1
         self.LinesCleared = 0
         self.Gravity = 1
