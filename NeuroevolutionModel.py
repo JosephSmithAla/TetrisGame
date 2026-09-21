@@ -6,24 +6,6 @@ import time
 import random
 
 
-class Perceptron:
-    @dispatch(object, np.ndarray)
-    def __init__(self, input_bias = 0, input_weights = np.array([])):
-
-        self.weights = input_weights
-        self.bias = input_bias
-
-
-    @dispatch(int)
-    def __init__(self, input_count = 0):
-
-        self.weights = 2 * np.random.rand(input_count) - 1
-        self.bias = 2 * np.random.rand(1)[0] - 1
-
-
-    def FeedForward(self, input = np.array([])):
-        output = np.dot(self.weights, input) + self.bias
-        return output
 
 
 
@@ -31,8 +13,8 @@ class NeuralNetwork:
 
     @dispatch(int, int, int)
     def __init__(self,input_count, lay1, lay2 = 4):
-        self.Layer_1 =self.InitiatePerceptronLayer(lay1, input_count)
-        self.Layer_2 =self.InitiatePerceptronLayer(lay2, lay1)
+        self.Layer_1_weights, self.Layer_1_biases =self.InitiateLayer(lay1, input_count)
+        self.Layer_2_weights, self.Layer_2_biases =self.InitiateLayer(lay2, lay1)
         self.fitness = 0
         self.LoopResult = 0
         self.LinesCleared = 0
@@ -42,8 +24,8 @@ class NeuralNetwork:
 
     @dispatch(np.ndarray, np.ndarray, np.ndarray, np.ndarray)
     def __init__(self, layer_1_biases, layer_1_weights, layer_2_biases, layer_2_weights):
-        self.Layer_1 =self.LoadPerceptronLayer(layer_1_biases.size, layer_1_weights, layer_1_biases)
-        self.Layer_2 =self.LoadPerceptronLayer(layer_2_biases.size, layer_2_weights, layer_2_biases)
+        self.Layer_1_weights, self.Layer_1_biases = layer_1_weights, layer_1_biases
+        self.Layer_2_weights, self.Layer_2_biases = layer_2_weights, layer_2_biases
         self.fitness = 0
         self.LoopResult = 0
         self.LinesCleared = 0
@@ -53,59 +35,33 @@ class NeuralNetwork:
 
     def FeedForward(self, input = np.array([])):
 
-        output_1 = []
+        Z1 = np.dot(self.Layer_1_weights, input) + self.Layer_1_biases
 
-        for i in range(len(self.Layer_1)):
-            output_1.append(self.Activation_1(self.Layer_1[i].FeedForward(input)))
-        output_2 = []
+        Z2 = np.dot(self.Layer_2_weights, np.maximum(0, Z1)) + self.Layer_2_biases
 
-        for i in range(len(self.Layer_2)):
-            output_2.append(self.Activation_2(self.Layer_2[i].FeedForward(output_1)))
-
-        return output_2
+        return Z2
 
 
-    def LoadPerceptronLayer(self, perceptron_count, weights = np.array([]), biases = np.array([])):
-        perceptrons = np.array([])
-        for i in range(perceptron_count):
-            perceptrons = np.append(perceptrons, Perceptron(biases[i], weights[i]))
 
-        return perceptrons
+    def InitiateLayer(self, perceptron_count, layer_input_count):
 
-    def InitiatePerceptronLayer(self, perceptron_count, layer_input_count):
-        perceptrons = np.array( [])
-        for i in range(perceptron_count):
-            perceptrons = np.append(perceptrons, Perceptron(layer_input_count))
-        return perceptrons
+        weights = 2 * np.random.rand(perceptron_count, layer_input_count) - 1
 
-    def GetWeights(self, layer):
+        bias = 2 * np.random.rand(perceptron_count) - 1
 
-        return np.array([neuron.weights for neuron in layer])
+        return weights,bias
 
-    def GetBiases(self, layer):
 
-        return np.array([neuron.bias for neuron in layer])
 
     def SaveModel(self):
-        layer_1_biases = self.GetBiases(self.Layer_1)
-        layer_1_weights = self.GetWeights(self.Layer_1)
-        layer_2_biases = self.GetBiases(self.Layer_2)
-        layer_2_weights = self.GetWeights(self.Layer_2)
-        np.savez("weights_and_biases.npz", lyr1b = layer_1_biases, lyr1w = layer_1_weights, lyr2b = layer_2_biases, lyr2w = layer_2_weights)
 
-    def Activation_1(self, output):
-        if output > 0:
-            return output
-        else:
-            return 0
+        np.savez("weights_and_biases.npz", lyr1b = self.Layer_1_biases, lyr1w = self.Layer_1_weights, lyr2b = self.Layer_2_biases, lyr2w = self.Layer_2_weights)
 
-    def Activation_2(self, output):
-        return output
 
     def GetModelMoveInput(self, input):
         output = self.FeedForward(input)
 
-        return output.index(max(output))
+        return np.argmax(output)
 
     def GameLoop(self):
 
@@ -123,8 +79,9 @@ class NeuralNetwork:
                     self.fitness += 1
                 case 3:
                     self.GameInstance.RotateInput()
+
             self.LoopResult, self.LinesCleared = self.GameInstance.GameLoop()
-        self.fitness += self.LinesCleared * 20000
+        self.fitness += self.LinesCleared * 100000
 
 
 
@@ -139,6 +96,7 @@ class NeuralNetwork:
         self.GameLoop()
 
 
+
 class ModelManager:
     def __init__(self, population_size):
         self.population_size = population_size
@@ -149,94 +107,72 @@ class ModelManager:
         self.Mutation_Rate = 0.1
 
     def CreatePopulation(self):
+        arr = []
         for _ in range(self.population_size):
-            NN = NeuralNetwork(200, 50, 4)
+            NN = NeuralNetwork(200, 800, 4)
             NN.death_dispatcher.connect(self.OnNetworkDeath)
-            self.Population = np.append(self.Population, NN)
-
+            arr.append(NN)
+        self.Population = np.array(arr)
     def GenerateNewPopulation(self):
 
         new_generation = []
-
-        sorted_indices = np.argsort([network.fitness for network in self.Population])[::-1]
+        fitness_arr = [network.fitness for network in self.Population]
+        sorted_indices = np.argsort(fitness_arr)[::-1]
         self.Population = self.Population[sorted_indices]
-        print([network.fitness for network in self.Population])
-        for i in range(int(self.population_size / 100 * 10)):
-            new_generation.append(self.Population[i])
-        sum_weights = np.array([network.fitness for network in self.Population]).sum()
-        normalised_fitness_weights = np.array([network.fitness / sum_weights for network in self.Population])
+        print(self.Population[0].fitness)
+
+        new_generation += self.Population[0 : int(self.population_size * 5 / 100)].tolist()
+
+        sum_fitness = sum(fitness_arr)
+        normalised_fitness_weights = np.array(fitness_arr) / sum_fitness
         rng = np.random.default_rng()
 
-        new_parents = []
 
-        for i in range(int(self.population_size  / 100 * 90)):
-            new_parents.append(rng.choice(self.Population, p=normalised_fitness_weights))
 
-        self.Population = np.concatenate((np.array(new_generation), self.CrossParents(np.array(new_parents))))
+        new_parents = rng.choice(self.Population, p=normalised_fitness_weights, size=int(self.population_size  / 100 * 95))
+
+        self.Population = np.concatenate((np.array(new_generation), self.CrossParents(new_parents)))
         self.bShouldGenerateNextGeneration = False
         self.death_counter = 0
 
     def CrossParents(self, parents : np.ndarray):
-        arr = np.array([])
+        arr = []
         for i in range(0, parents.size, 2):
-            parent_1 = [parents[i].GetBiases(parents[i].Layer_1), parents[i].GetWeights(parents[i].Layer_1), parents[i].GetBiases(parents[i].Layer_2), parents[i].GetWeights(parents[i].Layer_2)]
-            parent_2 =[parents[i + 1].GetBiases(parents[i + 1].Layer_1), parents[i + 1].GetWeights(parents[i + 1].Layer_1), parents[i + 1].GetBiases(parents[i + 1].Layer_2), parents[i + 1].GetWeights(parents[i + 1].Layer_2)]
             for _ in range(2):
 
-                childBias1 = self.GetRandomCrossedAndMutatedBiases(parent_1[0], parent_2[0])
-                childWeight1 = self.GetRandomCrossedAndMutatedWeights(parent_1[1], parent_2[1])
-                childBias2 = self.GetRandomCrossedAndMutatedBiases(parent_1[2], parent_2[2])
-                childWeight2 = self.GetRandomCrossedAndMutatedWeights(parent_1[3], parent_2[3])
+                childBias1 = self.CrossoverAndMutate(parents[i].Layer_1_biases, parents[i + 1].Layer_1_biases)
+                childWeight1 = self.CrossoverAndMutate(parents[i].Layer_1_weights, parents[i + 1].Layer_1_weights)
+                childBias2 = self.CrossoverAndMutate(parents[i].Layer_2_biases, parents[i + 1].Layer_2_biases)
+                childWeight2 = self.CrossoverAndMutate(parents[i].Layer_2_weights, parents[i + 1].Layer_2_weights)
 
                 NN = NeuralNetwork(childBias1, childWeight1, childBias2, childWeight2)
                 NN.death_dispatcher.connect(self.OnNetworkDeath)
-                arr = np.append(arr, NN)
+                arr.append(NN)
 
-        return arr
+        return np.array(arr)
 
-    def GetRandomCrossedAndMutatedWeights(self, p1_w, p2_w):
-        new_weights = []
-        arguments = [0, -1, 1]
-        prob_weights = [1 - self.Mutation_Chance, self.Mutation_Chance / 2, self.Mutation_Chance / 2]
+    def CrossoverAndMutate(self, p1_arr : np.ndarray, p2_arr : np.ndarray):
 
-        for i in range(len(p1_w)):
-            selected_weights = []
-            for j in range(len(p1_w[i])):
-                new_weight = self.LimitNormalised(random.choice([p1_w, p2_w])[i][j] + self.Mutation_Rate * random.choices(arguments, weights=prob_weights, k=1)[0])
-                selected_weights.append(new_weight)
-            new_weights.append(np.array(selected_weights))
-        return np.array(new_weights)
+        mask = np.random.rand(*p1_arr.shape) < 0.5
+        crossed = np.where(mask, p1_arr, p2_arr)
 
-    def GetRandomCrossedAndMutatedBiases(self, p1_b, p2_b):
-        mutated_biases = []
-        arguments = [0, -1, 1]
-        weights = [1 - self.Mutation_Chance, self.Mutation_Chance / 2, self.Mutation_Chance / 2]
+        probs = [1 - self.Mutation_Chance, self.Mutation_Chance / 2, self.Mutation_Chance / 2]
+        deltas = np.random.choice([0, 1, -1], p=probs, size=p1_arr.shape)
 
-        for i in range(p1_b.size):
-            new_bias = self.LimitNormalised(random.choice([p1_b, p2_b])[i] + self.Mutation_Rate * random.choices(arguments, weights=weights, k=1)[0])
+        mutated = crossed + deltas * self.Mutation_Rate
 
-            mutated_biases.append(new_bias)
+        return np.clip(mutated, -1, 1)
 
-        return np.array(mutated_biases)
-
-    def LimitNormalised(self, input):
-
-        if input >= 1:
-            return 1
-        elif input <= -1:
-            return -1
-        else:
-            return input
 
     def TrainPopulation(self, cycle_count):
         self.CreatePopulation()
         for _ in range(cycle_count):
+            print("playing")
             self.ModelsPlay()
             #while not self.bShouldGenerateNextGeneration:
                 #time.sleep(1)
+            print("breeding")
             self.GenerateNewPopulation()
-        sorted_indices = np.argsort([network.fitness for network in self.Population])
-        self.Population = self.Population[sorted_indices][::-1],
         print("Over")
 
     def ModelsPlay(self):
