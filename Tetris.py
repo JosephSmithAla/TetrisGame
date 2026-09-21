@@ -103,7 +103,7 @@ class TetrisGameInstance:
         self.TetrominoTypes = ["I", "L", "S", "Z", "O", "J", "T"]
         self.GameSpawnSeed = self.TetrominoTypes
         self.TetrominoRotationBases = {"I" : 2, "L" : 4, "S" : 2, "Z" : 2, "O" : 1, "J" : 4, "T" : 4}
-        self.MyTetromino = Tetromino(tetromino_type = self.TetrominoTypes[random.randint(0, 6)], main_position = self.DefaultPosition, rotation = 0)
+        self.MyTetromino = None
         self.TetrominoCounter = 0
         self.GameScreen = None
         self.TetrominoColor = None
