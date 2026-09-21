@@ -124,7 +124,7 @@ class NeuralNetwork:
                 case 3:
                     self.GameInstance.RotateInput()
             self.LoopResult, self.LinesCleared = self.GameInstance.GameLoop()
-        self.fitness += self.LinesCleared * 50000
+        self.fitness += self.LinesCleared * 20000
 
 
 

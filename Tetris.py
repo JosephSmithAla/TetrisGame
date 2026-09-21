@@ -109,7 +109,6 @@ class TetrisGameInstance:
         #self.TetrominoColor = (0, 0, 0)
         #self.EmptySpaceColor = (255, 255, 255)
         self.LinesCleared = 0
-        #self.StartGame() simdilik kapali
 
 
     def getStates(self, state, piece): #canli oynanan kaydi etkilemeyen generate state fonksiyonu,zaten cnn kullanacak sadece o yuzden canliya mudahale etmeisnde sorun yok gibi
@@ -307,6 +306,7 @@ class TetrisGameInstance:
         self.PlayingGround = np.zeros((20, 10), dtype=int)
         self.PlayerPlayingGround = np.zeros((20, 10), dtype=int)
         random.shuffle(self.GameSpawnSeed)
-        self.TetrominoCounter = 0
+        self.MyTetromino = Tetromino(tetromino_type=self.GameSpawnSeed[0], main_position=self.DefaultPosition, rotation=0)
+        self.TetrominoCounter = 1
         self.LinesCleared = 0
         self.Gravity = 1
