@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import random
 import pygame
@@ -125,11 +127,12 @@ class TetrisGameInstance:
                         break
                     last_loc = tetromino.GetPiecesLocation(tetromino.Position)
                 if len(last_loc) > 0:
+                    cpy = self.PlayingGround
                     self.DrawToPlayerPlayingGround(last_loc)
                     self.PlayingGround = self.PlayingGround + self.PlayerPlayingGround
                     cleared_lines = self.CheckLineClears(np.unique(np.array(last_loc)[:, 1]))
                     states_to_return.append((self.PlayingGround, cleared_lines))
-                    self.PlayingGround = self.PlayingGround - self.PlayerPlayingGround
+                    self.PlayingGround = cpy
                     self.EraseFromPlayerPlayingGround(last_loc)
 
         self.PlayingGround = livePlayingGround
@@ -254,13 +257,21 @@ class TetrisGameInstance:
 
         return np.concatenate((self.PlayingGround.flatten(), self.PlayerPlayingGround.flatten()))
 
-    def GameLoopCNN(self, state, lines):
+    def GameLoopCNN(self, state, lines, gui = False):
         self.PlayingGround = state
+        self.DrawToPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
+        if gui:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+            self.DrawGUI()
+            time.sleep(0.1)
+        self.EraseFromPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
         if self.bTrySpawnTetromino():
             return (state, lines, self.MyTetromino.Type, False)
         else:
             self.PlayingGround = np.zeros_like(state)
-            return (state, -10, None, True) # hiper parametre olmali
+            return (state, -100, None, True) # hiper parametre olmali
 
 
     def GameLoop(self):
