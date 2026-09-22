@@ -1,10 +1,8 @@
 import numpy as np
-from multipledispatch import dispatch
 import Tetris
-import time
-import random
 from concurrent.futures import ProcessPoolExecutor
 import os
+from numba import njit
 
 
 
@@ -20,15 +18,18 @@ class NeuralNetwork:
 
         return [lay1_weights, lay1_biases, lay2_weights, lay2_biases]
 
-    def FeedForward(input = np.array([]), weights_and_biases = []):
+    @njit(fastmath=True)
+    def FeedForward(input_arr = np.array([]), w1 = [], b1 = [], w2 = [], b2 = []):
 
-        Z1 = np.dot(np.array(weights_and_biases[0]), input) + weights_and_biases[1]
-        Z2 = np.dot(np.array(weights_and_biases[2]), np.maximum(0, Z1)) + weights_and_biases[3]
+        input_arr = input_arr.astype(np.float64)
+
+        Z1 = np.dot(w1, input_arr) + b1
+        Z2 = np.dot(w2, np.maximum(0, Z1)) + b2
 
         return Z2
 
-    def GetModelMoveInput(input, weights_and_biases):
-        output = NeuralNetwork.FeedForward(input, weights_and_biases)
+    def GetModelMoveInput(input_arr, weights_and_biases):
+        output = NeuralNetwork.FeedForward(input_arr, *weights_and_biases)
 
         return np.argmax(output)
 
@@ -37,6 +38,7 @@ class NeuralNetwork:
         GameInstance = Tetris.TetrisGameInstance()
         GameInstance.StartGame()
         LoopResult = 0
+        LinesCleared = 0
 
         fitness = 0
         while LoopResult == 0:
@@ -59,8 +61,6 @@ class NeuralNetwork:
         return fitness, LinesCleared
 
     def PlayTetris(weights_and_biases):
-        fitness = 0
-        LinesCleared = 0
 
         fitness, LinesCleared = NeuralNetwork.GameLoop(weights_and_biases)
 
@@ -150,6 +150,7 @@ class ModelManager:
                 self.fitness_arr = np.array(list(Executor.map(NeuralNetwork.PlayTetris, self.Population, chunksize=chunk_size)))
 
                 self.GenerateNewPopulation()
+
 
         print("Over")
 
