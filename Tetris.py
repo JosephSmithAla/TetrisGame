@@ -124,6 +124,7 @@ class TetrisGameInstance:
         self.TetrominoColor = None
         self.EmptySpaceColor = None
         self.LinesCleared = 0
+        self.CurrentStates  =np.array([])
 
 
     def getStates(self, state, piece): #canli oynanan kaydi etkilemeyen generate state fonksiyonu,zaten cnn kullanacak sadece o yuzden canliya mudahale etmeisnde sorun yok gibi
@@ -329,6 +330,17 @@ class TetrisGameInstance:
     def GetStatesNEM(self):
 
         LivePlayerCanvas = self.PlayerPlayingGround.copy()
+        LiveCanvas = self.PlayingGround.copy()
+
+
+        for r in range(self.MyTetromino.RotationMaxCount):
+            self.PlayerPlayingGround = LivePlayerCanvas.copy()
+            self.PlayingGround = LiveCanvas.copy()
+            for i in range(1, 11):
+                lastloc = np.array([])
+                for j in range(19, -1, -1):
+                    if self.bCheckCollisionAtPosition()
+
 
     def GameLoop(self):
 
