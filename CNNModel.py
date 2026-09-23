@@ -21,9 +21,11 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         output = layers.Dense(1, activation='linear')(x) # negatif cezalari isleyebilmesi icin linear
 
         self.model = models.Model(inputs=inputs, outputs=output, name='TetrisModel')
-        self.target_model = models.Model(inputs=inputs, outputs=output, name='TargetTetrisModel')
+        self.target_model = tf.keras.models.clone_model(self.model)
+        self.target_model.set_weights(self.model.get_weights())
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr) # hiper parametre olarak eklenmeli EKLENDI
         self.model.summary()
+
 
         self.game = TetrisGameInstance()
         self.game.StartGame()
@@ -37,14 +39,17 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         self.lines = [0]
         self.loss_values = []
 
+
     def sample(self, sample_size):
         return random.sample(self.memory, sample_size)
 
     def calculate_reward(self, lines):
-        if lines >= 0:
-            return (pow(2, lines) * lines * lines) / 100.0
+        if lines < 0:
+            return -10.0
+        elif lines == 0:
+            return 1.0
         else:
-            return float(lines)
+            return float(lines ** 2) * 10
 
     def memorize(self, state, lines, piece, done):
         self.memory.append((state, self.calculate_reward(lines), piece, done))
@@ -53,15 +58,19 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         lines_sum = 0
         for i in range(play_num):
             s_r = self.game.getStates(self.game.PlayingGround, self.game.MyTetromino.Type)
-            rand = random.random()
-            if self.epsilon < rand: #epsilon-greedy algoritmasi
-                possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r], dtype=np.float32) # hem iceride kanal ekliyorus axis -1 ile hem de disaridan sariyoruz boylelikle dis boyut da artiyor
-                possible_rewards = np.array([item[1] for item in s_r], dtype=np.float32)
-                future_potentials = self.model(possible_states, training=False).numpy().flatten()
-                q_values = possible_rewards + 0.997 * future_potentials
-                decision = s_r[np.argmax(q_values)]
+            if len(s_r) > 0:
+                rand = random.random()
+                if self.epsilon < rand: #epsilon-greedy algoritmasi
+
+                        possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r], dtype=np.float32) # hem iceride kanal ekliyorus axis -1 ile hem de disaridan sariyoruz boylelikle dis boyut da artiyor
+                        immediate_rewards = np.array([item[1] for item in s_r], dtype=np.float32)
+                        future_potentials = self.model(possible_states, training=False).numpy().flatten()
+                        q_values = immediate_rewards + 0.997 * future_potentials
+                        decision = s_r[np.argmax(q_values)]
+                else:
+                    decision = random.choice(s_r)
             else:
-                decision = random.choice(s_r)
+                decision = (self.game.PlayingGround, -100)
             if decision[1] > 0:
                 lines_sum += decision[1]
             self.memorize(*self.game.GameLoopCNN(*decision))
@@ -81,6 +90,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
             self.epsilon = file['epsilon']
         else:
             self.epsilon = epsilon
+        self.play(min(int(len(self.lines)/4), 2500))
 
     def optimize(self, batch_size):
         if len(self.memory) < batch_size:
@@ -101,19 +111,25 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         batch = self.sample(batch_size)
         states = np.array([np.expand_dims(item[0], axis=-1) for item in batch], dtype=np.float32) #(BATCH_SIZE, 20, 10, 1)
         rewards = np.array([item[1] for item in batch], dtype=np.float32)
+        dones = np.array([item[3] for item in batch], dtype=bool)
+
         max_future_qs = np.zeros(batch_size, dtype=np.float32)
         future_states = []
+        future_rewards = []
         fstates_id = [] # future statelerin sirasini kaybetmemek icin
         filter_id = [] # kendi aralarinda hangi gruba ait olduklarini unutmamak icin
         id = 0
         for i in range(batch_size):
             if (not batch[i][3]):
                 next_states = self.game.getStates(batch[i][0], batch[i][2])
-                next_states = [r[0] for r in next_states]
-                for s in next_states:
-                    future_states.append(s)
-                    filter_id.append(id)
-                if len(next_states) > 0:
+                if len(next_states) == 0:
+                    dones[i] = True
+                    rewards[i] = -10
+                else:
+                    for s, lines in next_states:
+                        future_states.append(s)
+                        future_rewards.append(self.calculate_reward(lines))
+                        filter_id.append(id)
                     fstates_id.append(i)
                     id += 1
 
@@ -122,20 +138,24 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
                                            axis=-1)  # (batch_size, 20, 10 ,1)
             q_preds = self.target_model(future_states, training=False)
             q_preds = tf.squeeze(q_preds, axis=-1)
-            segment_ids = tf.constant(filter_id, dtype=tf.int32)
-            max_future_qs[fstates_id] = tf.math.segment_max(q_preds, segment_ids).numpy()
 
-        target = rewards + np.float32(0.997) * max_future_qs # bellman equation
-        target = tf.expand_dims(target, axis=-1) # dimensionlari ayni tutmak icin yoksa 1 boyut eksik oluyor
+            future_rewards_tensor = tf.constant(future_rewards, dtype=tf.float32)
+            total_future_values = future_rewards_tensor + 0.997 * q_preds
+
+            segment_ids = tf.constant(filter_id, dtype=tf.int32)
+            max_future_qs[fstates_id] = tf.math.segment_max(total_future_values, segment_ids).numpy()
+
+        target = np.where(dones, rewards, max_future_qs)
+        target = tf.expand_dims(target, axis=-1)
 
         with tf.GradientTape() as tape: # forward pass kayit altina aliniyor ki backward propda gradyan bulunabilsin
             pred_states = self.model(states, training=True)
-            loss = tf.keras.losses.mse(target, pred_states)
+            loss = tf.keras.losses.huber(target, pred_states)
             loss = tf.reduce_mean(loss)
 
         grad = tape.gradient(loss, self.model.trainable_variables)
         self.optimizer.apply_gradients(zip(grad, self.model.trainable_variables))
-        self.loss_values.append(loss)
+        self.loss_values.append(float(loss))
 
     def info(self):
         print("LOSS:", float(self.loss_values[-1]), " | ", "LINES:", self.lines[-1], " | EPSILON:", self.epsilon)
@@ -154,23 +174,34 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
     def play_test(self, play_num):
         self.game.ConstructGUI()
         self.game.StartGame()
+        decisions = []
         for i in range(play_num):
             s_r = self.game.getStates(self.game.PlayingGround, self.game.MyTetromino.Type)
-            possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r], dtype=np.float32)
-            decision = s_r[np.argmax(self.model(possible_states, training=False).numpy())]
+            if len(s_r) > 0:
+                possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r],
+                                           dtype=np.float32)  # hem iceride kanal ekliyorus axis -1 ile hem de disaridan sariyoruz boylelikle dis boyut da artiyor
+                immediate_rewards = np.array([item[1] for item in s_r], dtype=np.float32)
+                future_potentials = self.model(possible_states, training=False).numpy().flatten()
+                q_values = immediate_rewards + 0.997 * future_potentials
+                decision = s_r[np.argmax(q_values)]
+            else:
+                decision = (self.game.PlayingGround, -100)
             self.game.GameLoopCNN(*decision, gui = True)
+            decisions.append(decision)
 
 
 
 
 
-model = TetrisModel(1e-3, 100, 0.999)
+
+model = TetrisModel(1e-4, 100, 0.9995)
 model.load()
-for i in range(1000):
-    model.optimize(batch_size=64)
-    model.play(4)
-    model.info()
-model.save()
+#for i in range(100000):
+#    model.optimize(batch_size=64)
+#    model.play(4)
+#    if i % 100 == 0:
+#        model.info()
+#model.save()
 model.plot()
-model.play_test(1000)
+model.play_test(100)
 
