@@ -1,5 +1,4 @@
 import time
-
 import numpy as np
 import random
 import pygame
@@ -44,11 +43,34 @@ class Tetromino:
                 [(0, 0), (0, -1), (0, 1), (-1, 0)],
             ],
         }
+        self.TetrominoMetaData = self.GenerateRotationMeta()
         self.main_piece : int
         self.sub_piece1 : int
         self.sub_piece2 : int
         self.sub_piece3 : int
         self.Construct()
+
+
+    def GenerateRotationMeta(self):
+        meta_data = {}
+        for name, rots in self.TETROMINO_SHAPES.items():
+            meta_data[name] = []
+            for r in rots:
+                min_x = min(dx for dx, dy in r)
+                max_x = max(dx for dx, dy in r) # tetrominolarin tum rotasyonalri icin ekrandaki en sol ve en sag x degeri
+
+                bottoms_dict = {}
+                for dx, dy in r: # yere degen parcalarin koordinatlari
+                    if dx not in bottoms_dict or dy < bottoms_dict[dx]:
+                        bottoms_dict[dx] = dy
+                bottoms = [(dx, dy) for dx, dy in bottoms_dict.items()]
+
+                meta_data[name].append({
+                    "min_x": min_x,
+                    "max_x": max_x,
+                    "bottoms": bottoms
+                })
+        return meta_data
 
     def Construct(self):
         match self.Type:
@@ -103,7 +125,7 @@ class Tetromino:
 
     def Rotate(self, rotate_count):
 
-        self.main_piece, self.sub_piece1, self.sub_piece2, self.sub_piece3 = np.array(self.TETROMINO_SHAPES[self.Type][(self.Rotation + rotate_count) % self.RotationMaxCount])
+        self.main_piece, self.sub_piece1, self.sub_piece2, self.sub_piece3 = self.GetRotatedPositions(rotate_count)
 
         self.Rotation += rotate_count
 
@@ -126,34 +148,69 @@ class TetrisGameInstance:
         self.LinesCleared = 0
         self.CurrentStates  =np.array([])
 
+    def GetProfile(self,state):
+        has_blocks = np.any(state != 0, axis=0)
+        col_heights = np.where(has_blocks, 20 - np.argmax(state != 0 , 0), 0)
+        return col_heights
 
-    def getStates(self, state, piece): #canli oynanan kaydi etkilemeyen generate state fonksiyonu,zaten cnn kullanacak sadece o yuzden canliya mudahale etmeisnde sorun yok gibi
+    def getStates(self, state, piece):
+        livePlayingGround = self.PlayingGround.copy()
+        self.PlayingGround = state.copy()
+        states_to_return = []
+        liveLinesCleared = self.LinesCleared
+
+        tetromino = Tetromino(tetromino_type=piece)
+        meta = tetromino.TetrominoMetaData[piece]
+        col_heights = self.GetProfile(state)
+
+        for r_id, rot_data in enumerate(meta):
+            for i in range(1 - rot_data["min_x"], 10 - rot_data["max_x"] + 1):
+                y_center = max([col_heights[i + dx - 1] + 1 - dy for dx, dy in rot_data["bottoms"]])
+                tetromino.Position = np.array([i, y_center])
+                last_loc = tetromino.GetRotatedPositions(r_id)
+
+                max_y_in_piece = max(loc[1] for loc in last_loc) # parcanin en ustu tahtayi asiyor mu?
+                if max_y_in_piece > 20:
+                    continue
+
+                cpy = self.PlayingGround.copy()
+                self.DrawToPlayingGround(last_loc)
+                cleared_lines = self.CheckLineClears(np.unique(np.array(last_loc)[:, 1]))
+
+                states_to_return.append((self.PlayingGround.copy(), cleared_lines))
+
+                self.PlayingGround = cpy
+        self.PlayingGround = livePlayingGround
+        self.LinesCleared = liveLinesCleared
+        return states_to_return
+
+
+    def getStatesOld(self, state, piece): #canli oynanan kaydi etkilemeyen generate state fonksiyonu, (state np.array((20,10)), cleared_lines int)
         states_to_return = []
 
         livePlayingGround = self.PlayingGround.copy()
-        livePlayerPlayingGround = self.PlayerPlayingGround.copy()
-        self.PlayerPlayingGround = np.zeros((20, 10), dtype=int)
-        self.PlayingGround = state
-        for r in range(self.TetrominoRotationBases[piece]):
-            for i in range(1, 11):
+        liveLinesCleared = self.LinesCleared
+        self.PlayingGround = state.copy()
+
+        tetromino = Tetromino(tetromino_type=piece, main_position=np.array([5, 19]))
+        for r in range(tetromino.RotationMaxCount):
+            for i in range(1, 10):
                 last_loc = np.array([])
                 for j in range(19, -1, -1):
-                    tetromino = Tetromino(tetromino_type=piece, main_position=np.array([i, j]),
-                                      )
-                    if(self.bCheckCollisionAtPosition(tetromino.GetPiecesLocation(tetromino.Position))):
+                    tetromino.Position = np.array([i, j])
+                    rot_locations = tetromino.GetRotatedPositions(r)
+                    if self.bCheckCollisionAtPosition(rot_locations):
                         break
-                    last_loc = tetromino.GetPiecesLocation(tetromino.Position)
+                    last_loc = rot_locations
                 if len(last_loc) > 0:
-                    cpy = self.PlayingGround
-                    self.DrawToPlayerPlayingGround(last_loc)
-                    self.PlayingGround = self.PlayingGround + self.PlayerPlayingGround
+                    cpy = self.PlayingGround.copy()
+                    self.DrawToPlayingGround(last_loc)
                     cleared_lines = self.CheckLineClears(np.unique(np.array(last_loc)[:, 1]))
                     states_to_return.append((self.PlayingGround, cleared_lines))
                     self.PlayingGround = cpy
-                    self.EraseFromPlayerPlayingGround(last_loc)
 
         self.PlayingGround = livePlayingGround.copy()
-        self.PlayerPlayingGround = livePlayerPlayingGround.copy()
+        self.LinesCleared = liveLinesCleared
         return states_to_return
 
 
@@ -260,8 +317,7 @@ class TetrisGameInstance:
             self.MyTetromino.Rotate(1)
             self.DrawToPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
             self.GameLoop()
-        else:
-            self.DrawToPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
+
 
     def BringDownLines(self, clear_row):
         for i in range(clear_row, 20):
@@ -311,6 +367,9 @@ class TetrisGameInstance:
         return canvas.flatten()
 
     def GameLoopCNN(self, state, lines, gui = False):
+        if lines < 0:
+            self.StartGame()
+            return state, lines, self.MyTetromino.Type, True
         self.PlayingGround = state
         self.DrawToPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
         if gui:
@@ -321,11 +380,10 @@ class TetrisGameInstance:
             time.sleep(0.1)
         self.EraseFromPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
         if self.bTrySpawnTetromino():
-            return (state, lines, self.MyTetromino.Type, False)
+            return state, lines, self.MyTetromino.Type, False
         else:
             self.StartGame()
-            return (state, -100, None, True) # hiper parametre olmali
-
+            return state, -100, None, True # hiper parametre olmali
 
     def GetStatesNEM(self):
 
@@ -373,4 +431,3 @@ class TetrisGameInstance:
         self.TetrominoCounter = 1
         self.LinesCleared = 0
         self.Gravity = 1
-
