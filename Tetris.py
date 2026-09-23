@@ -326,6 +326,10 @@ class TetrisGameInstance:
             return (state, -100, None, True) # hiper parametre olmali
 
 
+    def GetStatesNEM(self):
+
+        LivePlayerCanvas = self.PlayerPlayingGround.copy()
+
     def GameLoop(self):
 
         #for event in pygame.event.get():
