@@ -1,3 +1,4 @@
+from math import sqrt
 from os import name
 from collections import deque
 import numpy as np
@@ -90,7 +91,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
             self.epsilon = file['epsilon']
         else:
             self.epsilon = epsilon
-        self.play(min(int(len(self.lines)/4), 2500))
+        #self.play(min(int(len(self.lines)/4), 2500))
 
     def optimize(self, batch_size):
         if len(self.memory) < batch_size:
@@ -171,11 +172,14 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         ax2.plot(self.lines, color='orange')
         plt.show()
 
-    def play_test(self, play_num):
-        self.game.ConstructGUI()
+    def play_test(self,gui=True):
+        if gui:
+            self.game.ConstructGUI()
         self.game.StartGame()
+        action = (np.zeros((20, 10),dtype=int), 1, "T", False)
         decisions = []
-        for i in range(play_num):
+        lines_cleared = 0
+        while not action[3]:
             s_r = self.game.getStates(self.game.PlayingGround, self.game.MyTetromino.Type)
             if len(s_r) > 0:
                 possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r],
@@ -186,8 +190,13 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
                 decision = s_r[np.argmax(q_values)]
             else:
                 decision = (self.game.PlayingGround, -100)
-            self.game.GameLoopCNN(*decision, gui = True)
+            if(decision[1] > 0):
+                lines_cleared += decision[1]
+                print(lines_cleared)
             decisions.append(decision)
+            action = self.game.GameLoopCNN(*decision, gui = gui)
+        print("CLEARED:", lines_cleared, "| PLAYED FOR:", len(decisions), "STEPS")
+        return lines_cleared, len(decisions)
 
 
 
@@ -203,5 +212,10 @@ model.load()
 #        model.info()
 #model.save()
 model.plot()
-model.play_test(100)
-
+lines = 0
+steps = 0
+for i in range(100):
+    line, step = model.play_test(False)
+    lines += line
+    steps += step
+print("ORTALAMA: ", line/ 100, step / 100)
