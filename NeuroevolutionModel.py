@@ -3,10 +3,14 @@ import Tetris
 import os
 import torch
 import torch.multiprocessing as mp
+import pygame
+import sys
 
-INPUT_COUNT = 200
+INPUT_COUNT = 5
 LAYER1_COUNT = 32
-LAYER2_COUNT = 4
+LAYER2_COUNT = 1
+
+POPULATION_COUNT = 100
 
 OFFSET1 = INPUT_COUNT * LAYER1_COUNT
 OFFSET2 = OFFSET1 + LAYER1_COUNT
@@ -28,11 +32,12 @@ class NeuralNetwork:
 
     @staticmethod
     def UnpackWeightsAndBiases(flat_tensor : torch.Tensor):
+        flat_np = flat_tensor.numpy()
 
-        w1 = flat_tensor[:OFFSET1].view(LAYER1_COUNT, INPUT_COUNT)
-        b1 = flat_tensor[OFFSET1:OFFSET2]
-        w2 = flat_tensor[OFFSET2:OFFSET3].view(LAYER2_COUNT, LAYER1_COUNT)
-        b2 = flat_tensor[OFFSET3:TOTAL_PARAMETERS]
+        w1 = flat_np[:OFFSET1].reshape(LAYER1_COUNT, INPUT_COUNT)
+        b1 = flat_np[OFFSET1:OFFSET2]
+        w2 = flat_np[OFFSET2:OFFSET3].reshape(LAYER2_COUNT, LAYER1_COUNT)
+        b2 = flat_np[OFFSET3:TOTAL_PARAMETERS]
 
         return w1, b1, w2, b2
 
@@ -47,20 +52,21 @@ class NeuralNetwork:
         return [lay1_weights, lay1_biases, lay2_weights, lay2_biases]
 
     @staticmethod
-    def FeedForward(input_tensor, w1, b1, w2, b2):
+    def FeedForward(features, w1, b1, w2, b2):
 
 
 
-        Z1 = torch.relu(torch.matmul(w1, input_tensor) + b1)
-        Z2 = torch.matmul(w2, Z1) + b2
+        Z1 = np.maximum(0, np.dot(w1, features) + b1)
+        Z2 = np.dot(w2, Z1) + b2
 
-        return Z2
+        return Z2.item()
 
     @staticmethod
-    def GetModelMoveInput(input_tensor, weights_and_biases):
-        output = NeuralNetwork.FeedForward(input_tensor, *weights_and_biases)
+    def GetModelStateIndex(input_arr, weights_and_biases):
 
-        return torch.argmax(output).item()
+        evaluation_list = [NeuralNetwork.FeedForward(features, *weights_and_biases) for features in input_arr]
+
+        return np.argmax(evaluation_list)
 
     @staticmethod
     def GameLoop(weights_and_biases : list):
@@ -70,30 +76,30 @@ class NeuralNetwork:
         LoopResult = 0
         LinesCleared = 0
 
-        fitness = 0
+        fitness = 1
 
         with torch.no_grad():
+
+
             while LoopResult == 0:
 
-                canvas_arr = GameInstance.GetGameCanvasArray()
-                input_tensor = torch.from_numpy(canvas_arr).float().flatten()
+                if LinesCleared >= 50000:
+                    break
 
-                match NeuralNetwork.GetModelMoveInput(input_tensor, weights_and_biases):
+                feature_set = GameInstance.GetStatesNEM()
 
-                    case 0:
-                        GameInstance.MoveDownInput()
-                        fitness +=1
-                    case 1:
-                        GameInstance.MoveRightInput()
-                        fitness += 1
-                    case 2:
-                        GameInstance.MoveLeftInput()
-                        fitness += 1
-                    case 3:
-                        GameInstance.RotateInput()
+                if feature_set.size == 0:
+                    break
 
-                LoopResult, LinesCleared = GameInstance.GameLoop()
-            fitness += LinesCleared * 20000
+
+
+                StateIndex =  NeuralNetwork.GetModelStateIndex(feature_set, weights_and_biases)
+
+                LoopResult, LinesCleared = GameInstance.GameLoop(StateIndex)
+
+
+
+            fitness += LinesCleared * POPULATION_COUNT
             return fitness, LinesCleared
 
     @staticmethod
@@ -106,7 +112,65 @@ class NeuralNetwork:
 
         fitness, LinesCleared = NeuralNetwork.GameLoop([w1, b1, w2, b2])
 
+
         return fitness
+
+    @staticmethod
+    def PlayTetrisVisual(flat_weights: torch.Tensor, fps: int = 15):
+        pygame.init()
+
+        BLOCK_SIZE = 30
+        GRID_WIDTH, GRID_HEIGHT = 10, 20
+        SCREEN_WIDTH = GRID_WIDTH * BLOCK_SIZE
+        SCREEN_HEIGHT = GRID_HEIGHT * BLOCK_SIZE
+
+        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        pygame.display.set_caption("AI Tetris - Best Individual")
+        clock = pygame.time.Clock()
+
+        pygame.event.pump()
+        clock = pygame.time.Clock()
+
+        w1, b1, w2, b2 = NeuralNetwork.UnpackWeightsAndBiases(flat_weights)
+        weights_and_biases = [w1, b1, w2, b2]
+
+        GameInstance = Tetris.TetrisGameInstance()
+        GameInstance.StartGame()
+
+        LoopResult = 0
+        LinesCleared = 0
+
+        while LoopResult == 0:
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    return
+
+            feature_set = GameInstance.GetStatesNEM()
+            if feature_set.size == 0:
+                break
+
+            StateIndex = NeuralNetwork.GetModelStateIndex(feature_set, weights_and_biases)
+            LoopResult, LinesCleared = GameInstance.GameLoop(StateIndex)
+
+
+            screen.fill((15, 15, 20))
+
+            board = GameInstance.PlayingGround
+
+            if board is not None:
+                for r in range(GRID_HEIGHT):
+                    for c in range(GRID_WIDTH):
+                        if board[r][c] != 0:
+                            rect = pygame.Rect(c * BLOCK_SIZE, r * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1)
+                            pygame.draw.rect(screen, (0, 230, 150), rect)
+
+            pygame.display.flip()
+            #clock.tick(fps)
+
+        print(f"Görsel Simülasyon Bitti. Toplam Temizlenen Satır: {LinesCleared}")
+        pygame.quit()
 
 
 
@@ -118,8 +182,8 @@ class ModelManager:
         self.fitness_arr = np.zeros(self.population_size)
         self.death_counter = 0
         self.bShouldGenerateNextGeneration = False
-        self.Mutation_Chance = 0.05
-        self.Mutation_Rate = 0.1
+        self.Mutation_Chance = 0.15
+        self.Mutation_Rate = 0.4
 
 
     def CreatePopulation(self):
@@ -142,7 +206,7 @@ class ModelManager:
             new_generation[i] = self.Population[sorted_indices[i]]
 
 
-        print(self.fitness_arr[sorted_indices[0]])
+        print(self.fitness_arr[sorted_indices])
 
 
         sum_fitness = self.fitness_arr.sum()
@@ -178,24 +242,44 @@ class ModelManager:
 
         cpu_count = os.cpu_count() or 4
 
-        with mp.Pool(processes=cpu_count, initializer=init_worker, initargs= (self.Population,)) as pool:
-            for _ in range(cycle_count):
+        pool = mp.Pool(processes=cpu_count, initializer=init_worker, initargs=(self.Population,))
+        try:
+            for i in range(cycle_count):
 
-                results = pool.map(NeuralNetwork.PlayTetris, range(self.population_size))
+                print("Current Generation : ", i+1)
 
-                self.fitness_arr = np.array(results)
-
-                self.GenerateNewPopulation()
+                generation_fitness = np.zeros(self.population_size)
 
 
-        print("Over")
+                num_episodes = 3
+                for _ in range(num_episodes):
+                    results = pool.map(NeuralNetwork.PlayTetris, range(self.population_size))
+                    generation_fitness += np.array(results)
+
+                self.fitness_arr = generation_fitness / num_episodes
+
+                if i+1 != cycle_count:
+                    self.GenerateNewPopulation()
+                    self.fitness_arr = np.zeros(self.population_size)
+
+
+        finally:
+            pool.close()
+            pool.join()
+        sorted_indices = np.argsort(self.fitness_arr)[::-1]
+        best_model = self.Population[sorted_indices[0]].clone()
+
+
+        print("\n--- Eğitim Tamamlandı! En İyi Birey Oynatılıyor ---")
+        for _ in range(10):
+            NeuralNetwork.PlayTetrisVisual(best_model, fps=15)
 
 
 if __name__ == "__main__":
 
     mp.set_start_method("spawn", force=True)
 
-    Manager = ModelManager(100)
-    Manager.TrainPopulation(1000000)
+    Manager = ModelManager(POPULATION_COUNT)
+    Manager.TrainPopulation(10)
     print("Training Over")
 
