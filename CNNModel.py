@@ -32,7 +32,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         self.game.StartGame()
         self.model_update_frequency = frequency
         self.model_update_counter = 0 # hiper parametre olarak eklenmeli EKLENDI
-        self.memory = deque(maxlen=20000) # 20x10np.array (s), int (reward), int (next_piece_enum), done
+        self.memory = deque(maxlen=300000) # 20x10np.array (s), int (reward), int (next_piece_enum), done
         self.epsilon = 1.0
         self.epsilon_min = 0.01
         self.epsilon_decrease_rate = epsilon_decrease_rate
@@ -192,7 +192,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
                 decision = (self.game.PlayingGround, -100)
             if(decision[1] > 0):
                 lines_cleared += decision[1]
-                print(lines_cleared)
+                #print(lines_cleared)
             decisions.append(decision)
             action = self.game.GameLoopCNN(*decision, gui = gui)
         print("CLEARED:", lines_cleared, "| PLAYED FOR:", len(decisions), "STEPS")
@@ -204,18 +204,22 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
 
 
 model = TetrisModel(1e-4, 100, 0.9995)
-model.load()
-#for i in range(100000):
+#model.play(1000)
+#for i in range(300000):
 #    model.optimize(batch_size=64)
 #    model.play(4)
 #    if i % 100 == 0:
 #        model.info()
+
 #model.save()
+model.load()
 model.plot()
+#line, step = model.play_test(False)
+#print("ORTALAMA: ", line / 100, step / 100)
 lines = 0
 steps = 0
 for i in range(100):
     line, step = model.play_test(False)
     lines += line
     steps += step
-print("ORTALAMA: ", line/ 100, step / 100)
+print("ORTALAMA: ", lines / 100, steps / 100)

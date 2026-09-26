@@ -44,7 +44,14 @@ class Tetromino:
                 [(0, 0), (0, -1), (0, 1), (-1, 0)],
             ],
         }
-        self.TetrominoMetaData = self.GenerateRotationMeta()
+        self.TetrominoMetaData = {
+            'I': [{'min_x': 0, 'max_x': 0, 'bottoms': [(0, -2)]}, {'min_x': -1, 'max_x': 2, 'bottoms': [(0, 0), (-1, 0), (1, 0), (2, 0)]}],
+            'L': [{'min_x': 0, 'max_x': 1, 'bottoms': [(0, -1), (1, -1)]}, {'min_x': -1, 'max_x': 1, 'bottoms': [(0, 0), (-1, 0), (1, 0)]}, {'min_x': -1, 'max_x': 0, 'bottoms': [(0, -1), (-1, 1)]}, {'min_x': -1, 'max_x': 1, 'bottoms': [(0, 0), (1, 0), (-1, -1)]}],
+            'S': [{'min_x': -1, 'max_x': 1, 'bottoms': [(0, -1), (1, 0), (-1, -1)]}, {'min_x': 0, 'max_x': 1, 'bottoms': [(0, 0), (1, -1)]}],
+            'Z': [{'min_x': -1, 'max_x': 1, 'bottoms': [(0, -1), (-1, 0), (1, -1)]}, {'min_x': -1, 'max_x': 0, 'bottoms': [(0, 0), (-1, -1)]}],
+            'O': [{'min_x': 0, 'max_x': 1, 'bottoms': [(0, -1), (1, -1)]}],
+            'J': [{'min_x': -1, 'max_x': 0, 'bottoms': [(0, -1), (-1, -1)]}, {'min_x': -1, 'max_x': 1, 'bottoms': [(0, 0), (1, -1), (-1, 0)]}, {'min_x': 0, 'max_x': 1, 'bottoms': [(0, -1), (1, 1)]}, {'min_x': -1, 'max_x': 1, 'bottoms': [(0, 0), (-1, 0), (1, 0)]}],
+            'T': [{'min_x': -1, 'max_x': 1, 'bottoms': [(0, -1), (1, 0), (-1, 0)]}, {'min_x': 0, 'max_x': 1, 'bottoms': [(0, -1), (1, 0)]}, {'min_x': -1, 'max_x': 1, 'bottoms': [(0, 0), (-1, 0), (1, 0)]}, {'min_x': -1, 'max_x': 0, 'bottoms': [(0, -1), (-1, 0)]}]} # cacheledik self.GenerateRotationMeta()
         self.main_piece : int
         self.sub_piece1 : int
         self.sub_piece2 : int
