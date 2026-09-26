@@ -112,6 +112,7 @@ class NeuralNetwork:
 
         fitness, LinesCleared = NeuralNetwork.GameLoop([w1, b1, w2, b2])
 
+        print(LinesCleared)
 
         return fitness
 
@@ -236,9 +237,25 @@ class ModelManager:
 
         return torch.clamp(children, -1.0, 1.0)
 
+    def SavePopulation(self):
+        torch.save(self.Population, "population.pt")
 
-    def TrainPopulation(self, cycle_count):
-        self.CreatePopulation()
+    def LoadPopulation(self):
+        self.Population.copy_(torch.load("population.pt"))
+        self.Population.share_memory_()
+
+    def BestModelPlay(self, fps, play_count):
+        self.LoadPopulation()
+        for i in range(play_count):
+            NeuralNetwork.PlayTetrisVisual(self.Population[0], fps)
+
+    def TrainPopulation(self, cycle_count, bSHouildGeneratePopulation):
+
+        if bSHouildGeneratePopulation:
+            self.CreatePopulation()
+        else:
+            self.LoadPopulation()
+
 
         cpu_count = os.cpu_count() or 4
 
@@ -266,13 +283,17 @@ class ModelManager:
         finally:
             pool.close()
             pool.join()
-        sorted_indices = np.argsort(self.fitness_arr)[::-1]
-        best_model = self.Population[sorted_indices[0]].clone()
+        sorted_indices = np.argsort(self.fitness_arr)[::-1].copy()
+        self.Population = self.Population[sorted_indices].clone()
+
+        self.SavePopulation()
 
 
         print("\n--- Eğitim Tamamlandı! En İyi Birey Oynatılıyor ---")
-        for _ in range(10):
-            NeuralNetwork.PlayTetrisVisual(best_model, fps=15)
+        for _ in range(3):
+            NeuralNetwork.PlayTetrisVisual(self.Population[0], fps=120)
+
+
 
 
 if __name__ == "__main__":
@@ -280,6 +301,7 @@ if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
 
     Manager = ModelManager(POPULATION_COUNT)
-    Manager.TrainPopulation(10)
+    #Manager.TrainPopulation(1 ,False)
     print("Training Over")
+    Manager.BestModelPlay(500, 1)
 
