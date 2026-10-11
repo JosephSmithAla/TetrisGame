@@ -90,13 +90,21 @@ while not (cnndead and nedead):
     CNNGame.SetSeed(seed)
     NEGame.SetSeed(seed)
     if not nedead:
+        ne_score = NEGame.LinesCleared
         nedata = NEGame.GameLoopCNN(*NEModel.DecideMove(NEGame.PlayingGround, NEGame.MyTetromino.Type, NEGame))
-        NEGame.LinesCleared += nedata[1]
         nedead = nedata[3]
+        if nedead:
+            NEGame.LinesCleared, NEGame.PlayingGround = ne_score, nedata[0]
+        else:
+            NEGame.LinesCleared += nedata[1]
     if not cnndead:
+        cnn_score = CNNGame.LinesCleared
         cnndata = CNNGame.GameLoopCNN(*CNNModel.decide(CNNGame.PlayingGround, CNNGame.MyTetromino.Type))
-        CNNGame.LinesCleared += cnndata[1]
         cnndead = cnndata[3]
+        if cnndead:
+            CNNGame.LinesCleared, CNNGame.PlayingGround = cnn_score, cnndata[0]
+        else:
+            CNNGame.LinesCleared += cnndata[1]
     #GUI
     visualize(NEGame, CNNGame, fps=10)
 pygame.quit()

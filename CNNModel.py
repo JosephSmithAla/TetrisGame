@@ -44,7 +44,8 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
     def sample(self, sample_size):
         return random.sample(self.memory, sample_size)
 
-    def calculate_reward(self, lines):
+    @staticmethod
+    def calculate_reward( lines):
         if lines < 0:
             return -10.0
         elif lines == 0:
@@ -64,7 +65,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
                 if self.epsilon < rand: #epsilon-greedy algoritmasi
 
                         possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r], dtype=np.float32) # hem iceride kanal ekliyorus axis -1 ile hem de disaridan sariyoruz boylelikle dis boyut da artiyor
-                        immediate_rewards = np.array([item[1] for item in s_r], dtype=np.float32)
+                        immediate_rewards = np.array([self.calculate_reward(item[1]) for item in s_r], dtype=np.float32)
                         future_potentials = self.model(possible_states, training=False).numpy().flatten()
                         q_values = immediate_rewards + 0.997 * future_potentials
                         decision = s_r[np.argmax(q_values)]
@@ -184,7 +185,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
             if len(s_r) > 0:
                 possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r],
                                            dtype=np.float32)  # hem iceride kanal ekliyorus axis -1 ile hem de disaridan sariyoruz boylelikle dis boyut da artiyor
-                immediate_rewards = np.array([item[1] for item in s_r], dtype=np.float32)
+                immediate_rewards = np.array([self.calculate_reward(item[1]) for item in s_r], dtype=np.float32)
                 future_potentials = self.model(possible_states, training=False).numpy().flatten()
                 q_values = immediate_rewards + 0.997 * future_potentials
                 decision = s_r[np.argmax(q_values)]
@@ -203,7 +204,7 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         if len(s_r) > 0:
             possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r],
                                        dtype=np.float32)  # hem iceride kanal ekliyorus axis -1 ile hem de disaridan sariyoruz boylelikle dis boyut da artiyor
-            immediate_rewards = np.array([item[1] for item in s_r], dtype=np.float32)
+            immediate_rewards = np.array([self.calculate_reward(item[1]) for item in s_r], dtype=np.float32)
             future_potentials = self.model(possible_states, training=False).numpy().flatten()
             q_values = immediate_rewards + 0.997 * future_potentials
             decision = s_r[np.argmax(q_values)]
@@ -230,7 +231,7 @@ if __name__ == "__main__":
     lines = 0
     steps = 0
     for i in range(100):
-        line, step = model.play_test(True)
+        line, step = model.play_test(False)
         lines += line
         steps += step
     print("ORTALAMA: ", lines / 100, steps / 100)
