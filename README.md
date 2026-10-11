@@ -229,10 +229,10 @@ With this target, the same board always has the same target value. Checkpoints f
 
 > These numbers come from our own runs on our own Tetris implementation. They are not comparable to official Tetris benchmarks (see [Limitations](#limitations)).
 
-| Model | Training | Best single game | Average (100 games) |
+| Model | Training | Best single game | Average Clears (100 games) |
 |---|---|---|---|
 | Neuroevolution | ~140 generations | **290,000 lines** | *TBD* |
-| CNN + DQN | *TBD* steps | games usually end around 5,000–10,000 lines | *TBD* |
+| CNN + DQN | 300k steps | games end around 5,000–10,000 lines | 1073 |
 
 ### CNN training curve
 
