@@ -6,6 +6,8 @@ env/
 
 # PyCharm / JetBrains
 .idea/
-.idea/TetrisGame.iml
-__pycache__/Tetris.cpython-314.pyc
-__pycache__/Tetris.cpython-314.pyc
+*.iml
+
+# Python cache
+__pycache__/
+*.py[cod]

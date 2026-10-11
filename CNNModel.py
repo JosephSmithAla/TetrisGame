@@ -198,28 +198,39 @@ class TetrisModel: # pooling olmamasi sart cunku indirgeme yapoiyor pooling. dah
         print("CLEARED:", lines_cleared, "| PLAYED FOR:", len(decisions), "STEPS")
         return lines_cleared, len(decisions)
 
+    def decide(self, state, piece):
+        s_r = self.game.getStates(state, piece)
+        if len(s_r) > 0:
+            possible_states = np.array([np.expand_dims(item[0], axis=-1) for item in s_r],
+                                       dtype=np.float32)  # hem iceride kanal ekliyorus axis -1 ile hem de disaridan sariyoruz boylelikle dis boyut da artiyor
+            immediate_rewards = np.array([item[1] for item in s_r], dtype=np.float32)
+            future_potentials = self.model(possible_states, training=False).numpy().flatten()
+            q_values = immediate_rewards + 0.997 * future_potentials
+            decision = s_r[np.argmax(q_values)]
+        else:
+            decision = (self.game.PlayingGround, 0)
+        return decision
 
 
 
+if __name__ == "__main__":
+    model = TetrisModel(1e-4, 100, 0.9995)
+    #model.play(1000)
+    #for i in range(300000):
+    #    model.optimize(batch_size=64)
+    #    model.play(4)
+    #    if i % 100 == 0:
+    #        model.info()
 
-
-model = TetrisModel(1e-4, 100, 0.9995)
-#model.play(1000)
-#for i in range(300000):
-#    model.optimize(batch_size=64)
-#    model.play(4)
-#    if i % 100 == 0:
-#        model.info()
-
-#model.save()
-model.load()
-model.plot()
-#line, step = model.play_test(False)
-#print("ORTALAMA: ", line / 100, step / 100)
-lines = 0
-steps = 0
-for i in range(100):
-    line, step = model.play_test(False)
-    lines += line
-    steps += step
-print("ORTALAMA: ", lines / 100, steps / 100)
+    #model.save()
+    model.load()
+    model.plot()
+    #line, step = model.play_test(False)
+    #print("ORTALAMA: ", line / 100, step / 100)
+    lines = 0
+    steps = 0
+    for i in range(100):
+        line, step = model.play_test(False)
+        lines += line
+        steps += step
+    print("ORTALAMA: ", lines / 100, steps / 100)

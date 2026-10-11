@@ -68,6 +68,7 @@ class NeuralNetwork:
 
         return np.argmax(evaluation_list)
 
+
     @staticmethod
     def GameLoop(weights_and_biases : list):
 
@@ -192,6 +193,22 @@ class ModelManager:
         self.Population.uniform_(-1.0, 1.0)
 
 
+    def GetBestModel(self):
+        self.LoadPopulation()
+        return self.Population[0]
+
+    def DecideMove(self, state, piece, GameInstance):
+        states_arr = GameInstance.getStates(state, piece)
+
+        BestModel = self.GetBestModel()
+
+        w1, b1, w2, b2 = NeuralNetwork.UnpackWeightsAndBiases(BestModel)
+        weights_and_biases = [w1, b1, w2, b2]
+
+        features = [GameInstance.FeatureExtract(state_, lines_cleared) for state_, lines_cleared in states_arr]
+        index = NeuralNetwork.GetModelStateIndex(features, weights_and_biases)
+
+        return states_arr[index]
 
     def GenerateNewPopulation(self):
 
@@ -304,4 +321,3 @@ if __name__ == "__main__":
     #Manager.TrainPopulation(1 ,False)
     print("Training Over")
     Manager.BestModelPlay(500, 1)
-

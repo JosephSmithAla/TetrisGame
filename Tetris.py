@@ -157,6 +157,7 @@ class TetrisGameInstance:
         self.LinesCleared = 0
         self.CurrentStates  =np.array([])
         self.CurrentClearedLineCounts = np.array([])
+        self.seed = 0
 
     def GetProfile(self,state):
         has_blocks = np.any(state != 0, axis=0)
@@ -231,9 +232,15 @@ class TetrisGameInstance:
             self.DrawToPlayerPlayingGround(self.MyTetromino.GetPiecesLocation(self.MyTetromino.Position))
             return True
 
+    def SetSeed(self, new_seed):
+        self.seed = new_seed
+
     def bTrySpawnTetromino(self):
         if self.TetrominoCounter % 7 == 0:
-            random.shuffle(self.CurrentShuffle)
+            if self.seed == 0:
+                random.shuffle(self.CurrentShuffle)
+            else:
+                random.Random(self.seed).shuffle(self.CurrentShuffle)
         self.MyTetromino = Tetromino(tetromino_type= self.CurrentShuffle[self.TetrominoCounter % 7], main_position=np.array([5, 19]))
         self.TetrominoCounter += 1
 
@@ -369,6 +376,7 @@ class TetrisGameInstance:
         else:
             self.StartGame()
             return state, -100, None, True # hiper parametre olmali
+
 
     def GetMaxHeight(self, state):
 
