@@ -232,7 +232,9 @@ With this target, the same board always has the same target value. Checkpoints f
 | Model | Training | Best single game | Average Clears (100 games) |
 |---|---|---|---|
 | Neuroevolution | ~140 generations | **290,000 lines** | *TBD* |
-| CNN + DQN | 300k steps | games end around 5,000–10,000 lines | 1073 |
+| CNN + DQN | 300k steps | 9,191 lines | **1,755 lines** (4,414 pieces) |
+
+The CNN's results vary a lot from game to game. Out of the first 90 test games, 5 ended below 100 lines, 22 below 500, and 7 reached 5,000 or more. The median was about 1,000 lines, so a few long games pull the average up.
 
 ### CNN training curve
 
@@ -252,7 +254,9 @@ So the two models answer slightly different questions. Neuroevolution shows how 
 
 ### Where the CNN fails to generalize: the upper board
 
-The CNN plays very well while the stack stays low. If the stack rises even a little, to roughly **11 rows or more**, the model gets confused and starts making poor placements. It usually does not recover after that. This is why its games end around 5,000–10,000 lines.
+The CNN plays very well while the stack stays low. If the stack rises even a little, to roughly **11 rows or more**, the model gets confused and starts making poor placements. It usually does not recover after that. This is why its games end suddenly and why the scores spread so widely.
+
+The game logs support this. In nearly every game the CNN clears about 0.4 lines per piece, which is the theoretical maximum (4 cells per piece, 10 cells per line). So it does not slowly fill the board with garbage. Games end in a sudden collapse instead. The shortest one (27 lines in 93 pieces) ended with roughly 10 rows still on the board.
 
 Our goal was for the CNN to play anywhere on the board as well as it plays near the bottom, and it has not reached that. We have not confirmed the cause, but two explanations seem likely:
 
@@ -276,7 +280,7 @@ Neuroevolution does not have this problem. Its features (holes, bumpiness, heigh
 - **No hold piece and no look-ahead.** Neuroevolution only sees the current piece. The CNN uses the next piece only when computing training targets.
 - **Our own engine.** The rules are close to standard Tetris but not identical, and scores are counted in lines cleared, not points.
 - **CNN does not generalize to high stacks.** Once the stack reaches about 11 rows, CNN play quickly falls apart (see [above](#where-the-cnn-fails-to-generalize-the-upper-board)).
-- **Small amount of evaluation.** We have not run the two models under identical, large-scale test conditions yet.
+- **Small amount of evaluation.** The CNN has been tested over 100 games, but the neuroevolution model has not been tested the same way yet, so the two averages are not directly comparable.
 
 ---
 
