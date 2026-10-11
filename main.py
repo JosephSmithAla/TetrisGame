@@ -8,30 +8,29 @@ import pygame
 import numpy
 
 
+BLOCK_SIZE = 30
+GRID_WIDTH, GRID_HEIGHT = 20, 20
+HEADER_HEIGHT = 60
+
+SCREEN_WIDTH = GRID_WIDTH * BLOCK_SIZE
+SCREEN_HEIGHT = (GRID_HEIGHT * BLOCK_SIZE) + HEADER_HEIGHT
+
+pygame.init()
+pygame.font.init()
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("AI Tetris - NE vs CNN")
+clock = pygame.time.Clock()
+title_font = pygame.font.SysFont("Arial", 18, bold=True)
+score_font = pygame.font.SysFont("Arial", 16)
+
+
 def visualize(NEGame, CNNGame, fps=5):
-    pygame.init()
-    pygame.font.init()
-
-    BLOCK_SIZE = 30
-    GRID_WIDTH, GRID_HEIGHT = 20, 20
-    HEADER_HEIGHT = 60
-
-    SCREEN_WIDTH = GRID_WIDTH * BLOCK_SIZE
-    SCREEN_HEIGHT = (GRID_HEIGHT * BLOCK_SIZE) + HEADER_HEIGHT
-
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("AI Tetris - NE vs CNN")
-    clock = pygame.time.Clock()
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             return
 
     screen.fill((15, 15, 20))
-
-    title_font = pygame.font.SysFont("Arial", 18, bold=True)
-    score_font = pygame.font.SysFont("Arial", 16)
 
     ne_score = NEGame.LinesCleared
     cnn_score = CNNGame.LinesCleared

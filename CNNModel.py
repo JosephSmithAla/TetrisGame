@@ -230,7 +230,7 @@ if __name__ == "__main__":
     lines = 0
     steps = 0
     for i in range(100):
-        line, step = model.play_test(False)
+        line, step = model.play_test(True)
         lines += line
         steps += step
     print("ORTALAMA: ", lines / 100, steps / 100)
